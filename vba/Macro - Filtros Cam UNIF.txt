@@ -1,0 +1,426 @@
+Sub Process_Complete()
+' Daily Process For Load In Next
+' STEP BY STEP (F8) - COMPLETE (F5)
+    Call RenameActiveSheet
+    Call Titles
+    Do
+        On Error Resume Next
+        Call Update_Line_Q      'Call to a sort of the column with values ACTIVATED and DEACTIVATED
+        Call Filter_Q           'Delimiter for cells with values separated by ; in the full address column
+        If Err.Number <> 0 Then
+            Err.Clear
+            Exit Do
+        End If
+        On Error GoTo 0
+    Loop
+    Do
+        On Error Resume Next
+        Call Update_Line_AO      'Call to a sort of the column with values ACTIVATED and DEACTIVATED
+        Call Filter_AO           'Delimiter for cells with values separated by ; in the full address column
+        If Err.Number <> 0 Then
+            Err.Clear
+            Exit Do
+        End If
+        On Error GoTo 0
+    Loop
+    Call Update
+    Call Headers
+    Call Dates
+    Call ActiveLines
+    
+    Application.Wait (Now + TimeValue("00:00:05"))
+    Call AdjustMonitor
+    
+    Application.Wait (Now + TimeValue("00:00:05"))
+    Call AdjustValorScoring
+    Call Cutter
+    Call DeleteColumnsAYtoBC
+    
+    Application.Wait (Now + TimeValue("00:00:05"))
+    Call FinalHeaders
+    Call CorrectionMonitor
+    Range("A2").Select
+    MsgBox "Macro executed successfully."
+End Sub
+Sub CorrectionMonitor()
+    ' --- 1. INITIAL CONFIGURATION ---
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim rngProcesar As Range
+    Dim i As Long
+    Set ws = ThisWorkbook.ActiveSheet
+    Application.ScreenUpdating = False
+    lastRow = ws.Cells(ws.Rows.Count, "BD").End(xlUp).Row
+    If lastRow <= 1 Then
+        MsgBox "No data to process in column BD.", vbInformation
+        Exit Sub
+    End If
+    Set rngProcesar = ws.Range("BD2:BD" & lastRow)
+    ' --- 2. CONVERT FORMATS ("DELIMIT") ---
+    rngProcesar.TextToColumns Destination:=ws.Range("BD2"), _
+                               DataType:=xlDelimited, _
+                               FieldInfo:=Array(1, 1)
+    ' --- 3. SORT THE COLUMN TO OPTIMIZE ---
+    ws.Range("A1:BI" & lastRow).Sort Key1:=ws.Range("BD1"), _
+                                     Order1:=xlAscending, _
+                                     Header:=xlYes
+    lastRow = ws.Cells(ws.Rows.Count, "BD").End(xlUp).Row
+    ' --- 4. LOOP, VALIDATE AND MOVE DATES ---
+    For i = 2 To lastRow
+        If IsDate(ws.Cells(i, "BD").Value) Then
+            ws.Cells(i, "BI").Value = ws.Cells(i, "BD").Value
+            ws.Cells(i, "BD").ClearContents
+        Else
+            Exit For
+        End If
+    Next i
+    Application.ScreenUpdating = True
+End Sub
+Sub DeleteColumnsAYtoBC()
+    Columns("AY:BC").Delete
+    Columns("BJ").Delete
+End Sub
+Sub Cutter()
+    Columns("BD:BJ").Select
+    Range("BJ1").Activate
+    Selection.Cut
+    Range("BJ1").Select
+    Selection.End(xlToRight).Select
+    Selection.Insert Shift:=xlToRight
+    Range("BI1").Select
+End Sub
+Sub AdjustValorScoring()
+    Dim lastRow As Long
+    Range("AZ1").Select
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter.Sort. _
+        SortFields.Clear
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter.Sort. _
+        SortFields.Add2 Key:=Columns("AZ:AZ"), SortOn:=xlSortOnValues, Order:= _
+        xlAscending, DataOption:=xlSortNormal
+    With ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter. _
+        Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    lastRow = ActiveSheet.Cells(Rows.Count, "AZ").End(xlUp).Row
+    Range("AZ2:BD" & lastRow).Select
+    Selection.Cut
+    ActiveWindow.SmallScroll Down:=-72
+    Range("BE2").Select
+    ActiveSheet.Paste
+End Sub
+Sub AdjustMonitor()
+    Dim lastRow As Long
+    Range("AY1").Select
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter.Sort. _
+        SortFields.Clear
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter.Sort. _
+        SortFields.Add2 Key:=Columns("AY:AY"), SortOn:=xlSortOnValues, Order:= _
+        xlAscending, DataOption:=xlSortNormal
+    With ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").AutoFilter. _
+        Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    lastRow = ActiveSheet.Cells(Rows.Count, "AY").End(xlUp).Row
+    Range("AY2:BD" & lastRow).Select
+    Selection.Cut
+    ActiveWindow.SmallScroll Down:=-72
+    Range("BD2").Select
+    ActiveSheet.Paste
+End Sub
+Sub ActiveLines()
+    Range("BK2").Select
+    Range(Selection, ActiveCell.SpecialCells(xlLastCell)).Select
+    Range("BK2:BK1048576").Select
+    Selection.TextToColumns Destination:=Range("BK2"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=False, _
+        Semicolon:=False, Comma:=True, Space:=False, Other:=False, FieldInfo _
+        :=Array(1, 1), TrailingMinusNumbers:=True
+    Range("BK1").Select
+End Sub
+Sub Titles()
+    Dim specificValue As String
+    Dim specificValue2 As String
+    specificValue = "Hola"
+    specificValue2 = "CRM Origen"
+    If Range("C1").Value = specificValue2 Then
+        Rows("1:1").Delete
+    End If
+    If Range("A1").Value <> specificValue Then
+        Rows("1:1").Select
+        Selection.Insert Shift:=xlDown
+        Range("A1").Select
+        Range("A1").Value = "Client Number"
+        Range("B1").Value = "[Account.AccountCode?]"
+        Range("C1").Value = "CRM Origin"
+        Range("D1").Value = "Debt Age"
+        Range("E1").Value = "[PotencialMark?]"
+        Range("F1").Value = "[PrePotencialMark?]"
+        Range("G1").Value = "[WriteOffMark?]"
+        Range("H1").Value = "Initial Amount"
+        Range("I1").Value = "[ModInitCta?]"
+        Range("J1").Value = "[DeudaRealCuenta?]"
+        Range("K1").Value = "[BillCycleName?]"
+        Range("L1").Value = "Campaign Name"
+        Range("M1").Value = "[DebtAgeInicial?]"
+        Range("N1").Value = "Collection Agency"
+        Range("O1").Value = "Assignment Date"
+        Range("P1").Value = "Manageable Debt"
+        Range("Q1").Value = "Full Address"
+        Range("R1").Value = "End Date "
+        Range("S1").Value = "Segment"
+        Range("T1").Value = "[Document?]"
+        Range("U1").Value = "[AccStsName?]"
+        Range("V1").Value = "City"
+        Range("W1").Value = "[InboxName?]"
+        Range("X1").Value = "Client Name"
+        Range("Y1").Value = "Execution ID"
+        Range("Z1").Value = "Due Date"
+        Range("AA1").Value = "Payment Reference Number"
+        Range("AB1").Value = "MIN"
+        Range("AC1").Value = "Plan"
+        Range("AD1").Value = "Accelerated Installments"
+        Range("AE1").Value = "Acceleration Date"
+        Range("AF1").Value = "Accelerated Value"
+        Range("AG1").Value = "Contingent Interests"
+        Range("AH1").Value = "Current Billed Interests"
+        Range("AI1").Value = "Late Payment Interests"
+        Range("AJ1").Value = "VAT Contingent Interests"
+        Range("AK1").Value = "VAT Current Interests"
+        Range("AL1").Value = "VAT Late Interests"
+        Range("AM1").Value = "Subscription Price"
+        Range("AN1").Value = "Process Code"
+        Range("AO1").Value = "[CustomerTypeId?]"
+        Range("AP1").Value = "[RefinanciedMark?]"
+        Range("AQ1").Value = "[Discount?]"
+        Range("AR1").Value = "[Permanencia?]"
+        Range("AS1").Value = "[DeudaSinPermanencia?]"
+        Range("AT1").Value = "Phone 1"
+        Range("AU1").Value = "Phone 2"
+        Range("AV1").Value = "Phone 3"
+        Range("AW1").Value = "Phone 4"
+        Range("AX1").Value = "Email"
+        Range("AY1").Value = "[ActivesLines]"
+        Columns("AZ:BD").Insert Shift:=xlToRight
+        Range("AZ1").Value = "[ActivesLines2]"
+        Range("BA1").Value = "[ActivesLines3]"
+        Range("BB1").Value = "[ActivesLines4]"
+        Range("BC1").Value = "[ActivesLines5]"
+        Range("BD1").Value = "[ActivesLines6]"
+        Range("BE1").Value = "[ActivesLines7]"
+        Range("BF1").Value = "Monitor"
+        Range("BG1").Value = "Scoring Value"
+        Range("BH1").Value = "Agreed Installments"
+        Range("BI1").Value = "Pending Installments"
+        Range("BJ1").Value = "Activation Entry Date"
+    End If
+End Sub
+Sub Update_Line_Q()
+    Columns("U:U").Select
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort.SortFields. _
+        Clear
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort.SortFields. _
+        Add2 Key:=Range("U:U"), SortOn:=xlSortOnValues, Order:=xlAscending _
+        , DataOption:=xlSortNormal
+    With ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort
+        .SetRange Range("A:BK")
+        .Header = xlNo
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+End Sub
+Sub Update_Line_AO()
+    Range("AO1").Select
+    Selection.AutoFilter
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort.SortFields. _
+        Clear
+    ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort.SortFields. _
+        Add2 Key:=Range("AO:AO"), SortOn:=xlSortOnValues, Order:=xlAscending _
+        , DataOption:=xlSortNormal
+    With ActiveWorkbook.Worksheets("CAM - UNIF REPORTE MULTICAMPAÑA").Sort
+        .SetRange Range("A:BK")
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+End Sub
+Sub Filter_Q()
+    Range("R1").Select
+    Selection.End(xlDown).Select
+    ActiveCell.Offset(1, 0).Select
+    ActiveCell.Offset(0, -1).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.TextToColumns Destination:=ActiveCell, DataType:= _
+        xlDelimited, TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, _
+        Tab:=False, Semicolon:=True, Comma:=False, Space:=False, Other:=False _
+        , FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, 1), _
+        Array(6, 1), Array(7, 1), Array(8, 1), Array(9, 1), Array(10, 1), Array(11, 1), Array(12, 1) _
+        , Array(13, 1), Array(14, 1), Array(15, 1), Array(16, 1), Array(17, 1), Array(18, 1), Array( _
+        19, 1), Array(20, 1), Array(21, 1), Array(22, 1), Array(23, 1), Array(24, 1), Array(25, 1), _
+        Array(26, 1), Array(27, 1), Array(28, 1), Array(29, 1), Array(30, 1), Array(31, 1), Array( _
+        32, 1), Array(33, 1), Array(34, 1), Array(35, 1), Array(36, 1), Array(37, 1)), _
+        TrailingMinusNumbers:=True
+    'Code to delimit missing cells
+    'IMPORTANT: Not configured to accept the replace message
+    'Macro runs step by step, cannot run fully unattended yet
+End Sub
+Sub Filter_AO()
+    Range("AO1").Select
+    Selection.End(xlDown).Select
+    ActiveCell.Offset(1, 0).Select
+    ActiveCell.Offset(0, -1).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.TextToColumns Destination:=ActiveCell, DataType:= _
+        xlDelimited, TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, _
+        Tab:=False, Semicolon:=True, Comma:=False, Space:=False, Other:=False _
+        , FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1), Array(5, 1), _
+        Array(6, 1), Array(7, 1), Array(8, 1), Array(9, 1), Array(10, 1), Array(11, 1), Array(12, 1) _
+        , Array(13, 1), Array(14, 1), Array(15, 1), Array(16, 1), Array(17, 1), Array(18, 1), Array( _
+        19, 1), Array(20, 1), Array(21, 1), Array(22, 1), Array(23, 1), Array(24, 1), Array(25, 1), _
+        Array(26, 1), Array(27, 1), Array(28, 1), Array(29, 1), Array(30, 1), Array(31, 1), Array( _
+        32, 1), Array(33, 1), Array(34, 1), Array(35, 1), Array(36, 1), Array(37, 1)), _
+        TrailingMinusNumbers:=True
+    'Code to delimit missing cells
+    'IMPORTANT: Not configured to accept the replace message
+    'Macro runs step by step, cannot run fully unattended yet
+End Sub
+Sub Update()
+    Range("AZ1").Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    Columns("AZ:BJ").Select
+    Selection.Cut
+    Range("AY1").Select
+    Selection.Insert Shift:=xlToRight
+    Range("BJ1").Select
+    Rows("1:1").Select
+    Selection.Insert Shift:=xlDown
+    Rows("2:2").Select
+    Selection.Delete Shift:=xlUp
+    Range("A1").Select
+    Selection.End(xlToRight).Select
+    Range("BK2").Select
+    Selection.End(xlDown).Select
+    Selection.End(xlUp).Select
+    Range("BJ2").Select
+    Range(Selection, ActiveCell.SpecialCells(xlLastCell)).Select
+    Range("BJ2:BJ1048570").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.TextToColumns Destination:=Range("BK2"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=False, _
+        Semicolon:=False, Comma:=True, Space:=False, Other:=False, FieldInfo _
+        :=Array(1, 2), TrailingMinusNumbers:=True
+    Range("BJ1").Select
+End Sub
+Sub Headers()
+    Dim i As Integer
+    Range("A1").Select
+    For i = 1 To 68
+        Cells(1, i).FormulaR1C1 = i & "_"
+    Next i
+    Range("BP1").Select
+End Sub
+Sub FinalHeaders()
+    Dim i As Integer
+    Range("A1").Select
+    For i = 1 To 62
+        Cells(1, i).FormulaR1C1 = i & "_"
+    Next i
+End Sub
+Sub RenameActiveSheet()
+    Dim newName As String
+    newName = "CAM - UNIF REPORTE MULTICAMPAÑA"
+    ActiveSheet.Name = newName
+End Sub
+Sub Dates()
+    Range("A1").Select
+    Selection.End(xlToRight).Select
+    Range("BP2").Select
+    ActiveCell.Value = Date
+    ActiveCell.NumberFormat = "dd/mm/yyyy"
+    Range("BP2").Select
+    Range(Selection, ActiveCell.SpecialCells(xlLastCell)).Select
+    Selection.FillDown
+    Call Segment_Type
+    Call DatesDelete
+End Sub
+Sub Segment_Type()
+    Do
+        Range("AO2").Select
+        Selection.End(xlDown).Select
+        ActiveCell.Offset(1, 0).Select
+        If IsNumeric(Cells(ActiveCell.Row, "AD").Value) And _
+           Cells(ActiveCell.Row, "AD").Value >= 80 And _
+           Cells(ActiveCell.Row, "AD").Value <= 89 Then
+            Range("R" & ActiveCell.Row & ":AN" & ActiveCell.Row).Cut _
+                Destination:=Range("AD" & ActiveCell.Row)
+            Range("AZ" & ActiveCell.Row).NumberFormat = "@"
+            With Cells(ActiveCell.Row, "AZ")
+                .Value = .Value & ","
+                .NumberFormat = "@"
+            End With
+            With Cells(ActiveCell.Row, "AZ")
+                .TextToColumns Destination:=.Cells(1, 1), DataType:=xlDelimited, _
+                    TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, _
+                    Tab:=False, Semicolon:=True, Comma:=False, Space:=False, Other:=False, _
+                    FieldInfo:=Array(1, 1), TrailingMinusNumbers:=True
+            End With
+            With Cells(ActiveCell.Row, "Q")
+                .Value = .Value & ";"
+                .NumberFormat = "@"
+            End With
+            With Cells(ActiveCell.Row, "Q")
+                .TextToColumns Destination:=.Cells(1, 1), DataType:=xlDelimited, _
+                    TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, _
+                    Tab:=False, Semicolon:=True, Comma:=False, Space:=False, Other:=False, _
+                    FieldInfo:=Array(1, 1), TrailingMinusNumbers:=True
+            End With
+        End If
+        If IsEmpty(Cells(ActiveCell.Row, "AD").Value) Then
+            Exit Do
+        End If
+    Loop
+    Do
+        Range("AO2").Select
+        Selection.End(xlDown).Select
+        ActiveCell.Offset(1, 0).Select
+        If Not IsEmpty(Cells(ActiveCell.Row, "A").Value) Then
+            Selection.End(xlToLeft).Select
+            With ActiveCell
+                .Value = .Value & ";"
+                .NumberFormat = "@"
+            End With
+            With ActiveCell
+                .TextToColumns Destination:=.Cells(1, 1), DataType:=xlDelimited, _
+                    TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, _
+                    Tab:=False, Semicolon:=True, Comma:=False, Space:=False, Other:=False, _
+                    FieldInfo:=Array(1, 1), TrailingMinusNumbers:=True
+            End With
+        End If
+        If IsEmpty(Cells(ActiveCell.Row, "A").Value) Then
+            Exit Do
+        End If
+    Loop
+End Sub
+Sub DatesDelete()
+    Do
+        Range("BP2").Select
+        Selection.End(xlDown).Select
+        If IsEmpty(Cells(ActiveCell.Row, "A").Value) Then
+            Cells(ActiveCell.Row, "BP").ClearContents
+        End If
+        If Not IsEmpty(Cells(ActiveCell.Row, "A").Value) Then
+            Exit Do
+        End If
+    Loop
+End Sub

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ErrorType</class>
+ <widget class="QMainWindow" name="ErrorType">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>584</width>
+    <height>281</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Syncra - WARN SparkSession</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QLabel" name="label_Version_Control_Version">
+    <property name="geometry">
+     <rect>
+      <x>160</x>
+      <y>210</y>
+      <width>251</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(162, 162, 162);
+font: italic 10pt &quot;MS Sans Serif&quot;;</string>
+    </property>
+    <property name="text">
+     <string>Automatización de Procesos - V. 1.08.661</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_Version_Detail">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>20</y>
+      <width>541</width>
+      <height>181</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(200, 0, 0);
+font: italic 10pt &quot;MS Sans Serif&quot;;</string>
+    </property>
+    <property name="text">
+     <string>Automatización de Procesos - V. 1.08.661</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>584</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuDesarrolladores">
+    <property name="title">
+     <string>Creditos</string>
+    </property>
+    <addaction name="actionDesarrolladores"/>
+    <addaction name="actionStakeholders"/>
+   </widget>
+   <widget class="QMenu" name="menuDependencias">
+    <property name="title">
+     <string>Dependencias</string>
+    </property>
+    <addaction name="actionLibrerias"/>
+    <addaction name="actionPath"/>
+   </widget>
+   <addaction name="menuDesarrolladores"/>
+   <addaction name="menuDependencias"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionDesarrolladores">
+   <property name="text">
+    <string>Desarrolladores</string>
+   </property>
+  </action>
+  <action name="actionStakeholders">
+   <property name="text">
+    <string>Stakeholders</string>
+   </property>
+  </action>
+  <action name="actionLibrerias">
+   <property name="text">
+    <string>Librerias</string>
+   </property>
+  </action>
+  <action name="actionPath">
+   <property name="text">
+    <string>Path</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

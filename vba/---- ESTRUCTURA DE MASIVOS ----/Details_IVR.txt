@@ -1,0 +1,84 @@
+1_	Número de Cliente
+2_	[Account.AccountCode?]
+3_	CRM Origen
+4_	Edad de Deuda
+5_	[PotencialMark?]
+6_	[PrePotencialMark?]
+7_	[WriteOffMark?]
+8_	Monto inicial
+9_	[ModInitCta?]
+10_	[DeudaRealCuenta?]
+11_	[BillCycleName?]
+12_	Nombre Campaña
+13_	[DebtAgeInicial?]
+14_	Nombre Casa de Cobro
+15_	Fecha de Asignacion
+16_	Deuda Gestionable
+17_	Dirección Completa
+18_	Fecha Final 
+19_	Segmento
+20_	[Documento?]
+21_	[AccStsName?]
+22_	Ciudad
+23_	[InboxName?]
+24_	Nombre del Cliente
+25_	Id de Ejecucion
+26_	Fecha de Vencimiento
+27_	Numero Referencia de Pago
+28_	MIN
+29_	Plan
+30_	Cuotas Aceleradas
+31_	Fecha de Aceleracion
+32_	Valor Acelerado
+33_	Intereses Contingentes
+34_	Intereses Corrientes Facturados
+35_	Intereses por mora facturados
+36_	Cuotas Facturadas
+37_	Iva Intereses Contigentes Facturado
+38_	Iva Intereses Corrientes Facturados
+39_	Iva Intereses por Mora Facturado
+40_	Precio Subscripcion
+41_	Código de proceso
+42_	[CustomerTypeId?]
+43_	[RefinanciedMark?]
+44_	[Discount?]
+45_	[Permanencia?]
+46_	[DeudaSinPermanencia?]
+47_	Telefono 1
+48_	Telefono 2
+49_	Telefono 3
+50_	Telefono 4
+51_	Email
+52_	[ActivesLines?]
+53_	[ActivesLines?]
+54_	[ActivesLines?]
+55_	[ActivesLines?]
+56_	[ActivesLines?]
+57_	[ActivesLines?]
+
+VCERAREC 5000 IVR 1
+VCEMIREC 5021 IVR 2
+VC060REC 5041 IVR 3
+VCERSREC 5061 IVR 4
+VCEASREC 5081 IVR 5
+VDICEREC 5101 IVR 6
+VTOM0REC 5121 IVR 7
+VM120REC 5141 IVR 8
+VM150REC 5161 IVR 9
+VM180REC 5181 IVR 10
+VM210REC 5201 IVR 11
+VMO30REC 5221 IVR 12
+VMO60REC 5241 IVR 13
+VMO90REC 5261 IVR 14
+VCASTREC 5281 IVR 15
+VCADIREC 5301 IVR 16
+VPOTEREC 5321 IVR 17
+VPRECREC 5341 IVR 18
+VPOMIREC 5361 IVR 19
+VPREDREC 5381 IVR 20
+VCEBCREC 5461 IVR 21
+
+TRANS CLARO 1 - Lista: 4000
+TRANS CLARO 2 - Lista: 4021
+TRANS CLARO 3 - Lista: 4041
+TRANS CLARO 4 - Lista: 4061
