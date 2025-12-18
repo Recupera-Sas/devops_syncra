@@ -19,12 +19,10 @@ COLUMNS_SMS_SAEM_2 = ['respuesta doble via', 'fecha de creacion', 'enviados', 'r
     'nombre de usuario', 'país'
 ]
 
-COLUMNS_IVR_SAEM = [
-    "pais", "id campaña", "nombre campaña", "usuario", "id usuario",
-    "fecha programada", "fecha registro", "archivo telefonos", "audio",
-    "fecha finalización", "estado", "carga", "% ejecucion", "ejecutados",
-    "satisfactorios", "colgados", "no contestados", "pendientes", "sin contacto",
-    "ultima llamada", "std", "segundos", "repasos"
+COLUMNS_IVR_SAEM = ['estado', 'nombre_campana', 'id', 'registros', 'tipo_campana', 'ejecutados_pct', 
+    'ejecutados', 'ult_llamada', 'archivo', 'sin_respuesta', 'fecha_inicio', 'repasos_asignados', 
+    'repasos_ejecutados', 'fecha_fin', 'segundos', 'satisfactorios', 'colgados', 'pendientes', 'usuario', 
+    'fecha_creacion', 'audio', 'id_usuario', 'sin_contacto'
 ]
 
 COLUMNS_EMAIL_MASIVIAN = [
@@ -282,24 +280,24 @@ def process_sms_saem(file_path, present_headers):
 def process_ivr_saem(file_path, present_headers):
     """
     📞 Logic to process IVR SAEM files.
-    📈 Includes aggregation of 'segundos' by 'fecha programada' (day) and a new
-    categorical column derived from 'nombre campaña' and the 'Estandar/Personalizado' column.
+    📈 Includes aggregation of 'segundos' by 'fecha_inicio' (day) and a new
+    categorical column derived from 'nombre_campana' and the 'Estandar/Personalizado' column.
     """
-    print(f"🚀 *** Starting IVR SAEM processing for: '{file_path}' ***")
-    df = _read_and_normalize_excel_data(file_path)
+    print(f"🚀 * Starting IVR SAEM processing for: '{file_path}' ***")
+    df = _read_and_normalize_csv_data(file_path)
     print(f"   🎯 Normalized columns: {len(df.columns)}")
 
     df['source_file_type'] = 'IVR_SAEM' # Mark the original data
 
     # --- IVR SAEM SPECIFIC AGGREGATION ---
-    required_cols = ['fecha programada', 'segundos', 'nombre campaña', 'unnamed: 23']
+    required_cols = ['fecha_inicio', 'segundos', 'nombre_campana', 'tipo_campana']
     # Identify the 'Estandar'/'Personalizado' column (assuming it's a string column
     # that might be unnamed or have a generic name like 'unnamed: x')
     standard_personalizado_col = None
     for col in df.columns:
         # Check if the column contains 'estandar' or 'personalizado' (case-insensitive)
         # and if it's a string type
-        if df[col].astype(str).str.contains(r'estandar|personalizado', case=False, na=False).any() and col != 'nombre campaña':
+        if df[col].astype(str).str.contains(r'estandar|personalizado', case=False, na=False).any() and col != 'nombre_campana':
             standard_personalizado_col = col
             print(f"   🔍 Identified 'Estandar/Personalizado' column as: '{standard_personalizado_col}'")
             required_cols.append(standard_personalizado_col)
@@ -311,19 +309,19 @@ def process_ivr_saem(file_path, present_headers):
         print(f"🎉 *** IVR SAEM processing finished. Returning original data only. ***\n" + "-" * 50)
         return df
 
-    print("   📊 Performing aggregation for 'segundos' by 'fecha programada', 'campaign_group', and 'standard_personalizado_type'...")
+    print("   📊 Performing aggregation for 'segundos' by 'fecha_inicio', 'campaign_group', and 'standard_personalizado_type'...")
 
     # 1. Convert 'segundos' to numeric, filling NaNs with 0
     df['segundos'] = pd.to_numeric(df['segundos'], errors='coerce').fillna(0)
     print("      ✅ 'segundos' column converted to numeric and NaNs filled with 0.")
 
     # 2. Convert 'fecha programada' to datetime and extract the date part
-    df['fecha programada'] = pd.to_datetime(df['fecha programada'], errors='coerce')
-    df['fecha_programada_dia'] = df['fecha programada'].dt.floor('D') # Get just the date (YYYY-MM-DD)
+    df['fecha_inicio'] = pd.to_datetime(df['fecha_inicio'], errors='coerce')
+    df['fecha_programada_dia'] = df['fecha_inicio'].dt.floor('D') # Get just the date (YYYY-MM-DD)
     print("      ✅ 'fecha programada' converted to datetime and date part extracted.")
 
     # 3. Create the 'campaign_group' column based on 'nombre campaña'
-    df['nombre campaña_lower'] = df['nombre campaña'].astype(str).str.lower()
+    df['nombre campaña_lower'] = df['nombre_campana'].astype(str).str.lower()
     
     # Define the mapping
     campaign_mapping = {
@@ -338,13 +336,13 @@ def process_ivr_saem(file_path, present_headers):
         'payjoy': ['payjoy', 'pay joy']
     }
 
-    df['campaign_group'] = df['nombre campaña'] # Default to original name
+    df['campaign_group'] = df['nombre_campana'] # Default to original name
     for group, keywords in campaign_mapping.items():
         for keyword in keywords:
             # Use contains for partial matches
             df.loc[df['nombre campaña_lower'].str.contains(keyword, na=False), 'campaign_group'] = group
     
-    print("      ✅ 'campaign_group' column created based on 'nombre campaña'.")
+    print("      ✅ 'campaign_group' column created based on 'nombre_campana'.")
     df.drop(columns=['nombre campaña_lower'], inplace=True) # Clean up helper column
 
     # 4. Filter out rows where 'fecha_programada_dia' is NaT (invalid date) before grouping
@@ -873,12 +871,12 @@ def save_combined_data_to_single_excel_sheet(dataframes_prices, dataframe_regist
         print(f"\n💾 Saving to Excel file...")
         # Save both DataFrames to different sheets in the same Excel file
         with pd.ExcelWriter(output_filepath, engine='openpyxl') as writer:
-            combined_df.to_excel(writer, sheet_name='Data Faturada', index=False)
+            combined_df.to_excel(writer, sheet_name='Data Facturada', index=False)
             dataframe_registers.to_excel(writer, sheet_name='Data Campana', index=False)
         
         print(f"🎉 ✅ SUCCESS!")
         print(f"📊 File saved: '{output_filepath}'")
-        print(f"   📄 'Data Faturada' sheet: {len(combined_df):,} rows")
+        print(f"   📄 'Data Facturada' sheet: {len(combined_df):,} rows")
         print(f"   📄 'Data Campana' sheet: {len(dataframe_registers):,} rows")
         print(f"   ⏰ Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
