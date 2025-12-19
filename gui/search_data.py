@@ -7,6 +7,9 @@ from pathlib import Path
 import json
 import shutil
 from datetime import datetime
+import tempfile
+import pyarrow.parquet as pq
+import pyarrow as pa
 
 def search_values_in_files(directory, output_path, search_list, process_data):
     search_values = [v.strip() for v in search_list.split(',')]
@@ -42,7 +45,75 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             file_list.extend([str(f) for f in files if f.is_file()])
         return file_list
 
-    # Improved CSV function with better type handling
+    # Optimized Parquet reading with multiple fallback strategies
+    def read_parquet_optimized(file_path):
+        """Ultra-fast Parquet file reading with OneDrive compatibility"""
+        filename = os.path.basename(file_path)
+        relative_path = os.path.relpath(file_path, directory)
+        
+        print(f"📦 Attempting to read Parquet: {relative_path}")
+        
+        # Strategy 1: Try Polars with different approaches
+        try:
+            # Try with use_pyarrow=True option
+            df_pl = pl.read_parquet(file_path, use_pyarrow=True)
+            print(f"✅ Parquet loaded successfully with PyArrow: {filename} - Shape: {df_pl.shape}")
+            return df_pl
+        except Exception as e1:
+            print(f"⚠️ Polars+PyArrow failed: {e1}. Trying direct Polars...")
+            
+            try:
+                # Try without PyArrow
+                df_pl = pl.read_parquet(file_path)
+                print(f"✅ Parquet loaded successfully: {filename} - Shape: {df_pl.shape}")
+                return df_pl
+            except Exception as e2:
+                print(f"⚠️ Direct Polars failed: {e2}. Trying PyArrow directly...")
+                
+                try:
+                    # Strategy 2: Use PyArrow directly
+                    table = pq.read_table(file_path)
+                    df_pl = pl.from_arrow(table)
+                    print(f"✅ Parquet loaded via direct PyArrow: {filename} - Shape: {df_pl.shape}")
+                    return df_pl
+                except Exception as e3:
+                    print(f"⚠️ PyArrow direct failed: {e3}. Trying memory copy strategy...")
+                    
+                    try:
+                        # Strategy 3: Copy file to temp location
+                        with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp_file:
+                            temp_path = tmp_file.name
+                            # Copy file content
+                            with open(file_path, 'rb') as src:
+                                shutil.copyfileobj(src, tmp_file)
+                        
+                        try:
+                            # Read from temp location
+                            df_pl = pl.read_parquet(temp_path)
+                            print(f"✅ Parquet loaded from temp copy: {filename} - Shape: {df_pl.shape}")
+                            return df_pl
+                        finally:
+                            # Clean up temp file
+                            try:
+                                os.unlink(temp_path)
+                            except:
+                                pass
+                                
+                    except Exception as e4:
+                        print(f"⚠️ Temp copy failed: {e4}. Trying pandas as last resort...")
+                        
+                        try:
+                            # Strategy 4: Use pandas (slowest but most compatible)
+                            df_pd = pd.read_parquet(file_path, engine='pyarrow')
+                            df_pl = pl.from_pandas(df_pd)
+                            print(f"✅ Parquet loaded via pandas: {filename} - Shape: {df_pl.shape}")
+                            return df_pl
+                        except Exception as e5:
+                            print(f"💥 All Parquet reading methods failed for {filename}: {e5}")
+                            search_stats['files_with_errors'].append(f"{relative_path} - Parquet error: {e5}")
+                            return None
+
+    # Rest of the CSV and Excel reading functions remain the same
     def read_csv_dynamic(file_path, delimiter=';'):
         try:
             return pd.read_csv(file_path, delimiter=delimiter, encoding='utf-8', dtype=str, low_memory=False)
@@ -71,7 +142,6 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             search_stats['files_with_errors'].append(f"{file_path} - Unexpected error: {e}")
             return None
 
-    # Optimized CSV reading with Polars and better error handling
     def read_csv_polars_optimized(file_path, delimiter=';'):
         """Optimized CSV reading with Polars for large files"""
         try:
@@ -81,7 +151,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                 infer_schema_length=10000,
                 null_values=["", "NULL", "null", "NaN", "nan"],
                 try_parse_dates=False,
-                dtype_backend='string'  # Force string type
+                dtype_backend='string'
             )
             return df_pl
         except Exception as e:
@@ -109,40 +179,33 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                 data[col] = df_pd[col].astype(str).fillna('').tolist()
             return pl.DataFrame(data)
 
-    # Optimized Parquet reading
-    def read_parquet_optimized(file_path):
-        """Ultra-fast Parquet file reading"""
-        try:
-            df_pl = pl.read_parquet(file_path)
-            print(f"⚡ Parquet file loaded: {os.path.basename(file_path)} - Shape: {df_pl.shape}")
-            return df_pl
-        except Exception as e:
-            print(f"❌ Error reading Parquet file {file_path}: {e}")
-            search_stats['files_with_errors'].append(f"{file_path} - Parquet error: {e}")
-            return None
-
     def search_in_dataframe_polars(df_pl, value, filepath, sheet_name="N/A"):
-        """Optimized search with Polars"""
+        """Optimized search with Polars - CONTAINS search (not exact match)"""
         try:
             # Convert all columns to string for consistent searching and type consistency
             df_str = df_pl.cast(pl.Utf8, strict=False).fill_null("")
             
             mask = pl.lit(False)
             for col in df_str.columns:
-                col_mask = df_str[col].str.contains(value)
+                # Use contains for partial matching (not exact)
+                col_mask = df_str[col].str.contains(value, literal=True)
                 mask = mask | col_mask
             
             matching_rows = df_str.filter(mask)
             
             if len(matching_rows) > 0:
-                # REORGANIZE COLUMNS: File first, search value after
+                # Preserve original columns structure
+                original_columns = df_str.columns
+                
+                # Add metadata columns at the beginning
                 matching_rows = matching_rows.with_columns([
-                    pl.lit(filepath).cast(pl.Utf8).alias("Source_File"),
-                    pl.lit(value).cast(pl.Utf8).alias("Search_Value"),
-                    pl.lit(sheet_name).cast(pl.Utf8).alias("Source_Sheet")
+                    pl.lit(filepath).cast(pl.Utf8).alias("Origen_Archivo"),
+                    pl.lit(value).cast(pl.Utf8).alias("Dato_Buscado"),
+                    pl.lit(sheet_name).cast(pl.Utf8).alias("Hoja_Origen")
                 ])
-                # Reorder columns to have Source_File and Search_Value first
-                columns_order = ["Source_File", "Search_Value", "Source_Sheet"] + [col for col in matching_rows.columns if col not in ["Source_File", "Search_Value", "Source_Sheet"]]
+                
+                # Reorder columns: metadata first, then original columns
+                columns_order = ["Origen_Archivo", "Dato_Buscado", "Hoja_Origen"] + [col for col in original_columns if col not in ["Origen_Archivo", "Dato_Buscado", "Hoja_Origen"]]
                 matching_rows = matching_rows.select(columns_order)
                 return matching_rows
             return None
@@ -156,21 +219,23 @@ def search_values_in_files(directory, output_path, search_list, process_data):
         try:
             df_str = df_pl.cast(pl.Utf8, strict=False).fill_null("")
             
+            # Use fold for better performance with contains
             mask = pl.fold(
                 acc=pl.lit(False),
-                function=lambda acc, col: acc | col.str.contains(value),
+                function=lambda acc, col: acc | col.str.contains(value, literal=True),
                 exprs=[pl.col(col) for col in df_str.columns]
             )
             
             matching_rows = df_str.filter(mask)
             
             if len(matching_rows) > 0:
+                original_columns = df_str.columns
                 matching_rows = matching_rows.with_columns([
-                    pl.lit(filepath).cast(pl.Utf8).alias("Source_File"),
-                    pl.lit(value).cast(pl.Utf8).alias("Search_Value"),
-                    pl.lit(sheet_name).cast(pl.Utf8).alias("Source_Sheet")
+                    pl.lit(filepath).cast(pl.Utf8).alias("Origen_Archivo"),
+                    pl.lit(value).cast(pl.Utf8).alias("Dato_Buscado"),
+                    pl.lit(sheet_name).cast(pl.Utf8).alias("Hoja_Origen")
                 ])
-                columns_order = ["Source_File", "Search_Value", "Source_Sheet"] + [col for col in matching_rows.columns if col not in ["Source_File", "Search_Value", "Source_Sheet"]]
+                columns_order = ["Origen_Archivo", "Dato_Buscado", "Hoja_Origen"] + [col for col in original_columns if col not in ["Origen_Archivo", "Dato_Buscado", "Hoja_Origen"]]
                 matching_rows = matching_rows.select(columns_order)
                 return matching_rows
             return None
@@ -185,16 +250,14 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             df_pd = df_pl.to_pandas()
             df_pd = df_pd.astype(str).fillna('')
             
-            mask = df_pd.apply(lambda row: any(value in str(cell) for cell in row), axis=1)
+            # Use contains for partial matching
+            mask = df_pd.apply(lambda row: any(str(value) in str(cell) for cell in row), axis=1)
             matching_rows = df_pd[mask].copy()
             
             if len(matching_rows) > 0:
-                matching_rows['Source_File'] = filepath
-                matching_rows['Search_Value'] = value
-                matching_rows['Source_Sheet'] = sheet_name
-                # Reorder columns
-                cols = ['Source_File', 'Search_Value', 'Source_Sheet'] + [col for col in matching_rows.columns if col not in ['Source_File', 'Search_Value', 'Source_Sheet']]
-                matching_rows = matching_rows[cols]
+                matching_rows.insert(0, 'Origen_Archivo', filepath)
+                matching_rows.insert(1, 'Dato_Buscado', value)
+                matching_rows.insert(2, 'Hoja_Origen', sheet_name)
                 return pl.from_pandas(matching_rows)
             return None
             
@@ -213,39 +276,59 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             file_count = len(results[value]) if found else 0
             
             summary_data.append({
-                'Search_Value': value,
-                'Found': 'YES' if found else 'NO',
-                'Total_Matches': match_count,
-                'Files_With_Matches': file_count,
-                'Status': 'SUCCESS' if found else 'NOT_FOUND'
+                'Dato_Buscado': value,
+                'Encontrado': 'SI' if found else 'NO',
+                'Total_Coincidencias': match_count,
+                'Archivos_Con_Coincidencias': file_count,
+                'Estado': 'ENCONTRADO' if found else 'NO_ENCONTRADO'
             })
         
         # General statistics
         summary_data.extend([
-            {'Search_Value': '=== SUMMARY ===', 'Found': '', 'Total_Matches': '', 'Files_With_Matches': '', 'Status': ''},
-            {'Search_Value': 'Total search values', 'Found': len(search_stats['search_values']), 'Total_Matches': '', 'Files_With_Matches': '', 'Status': ''},
-            {'Search_Value': 'Values found', 'Found': len([v for v in search_stats['search_values'] if v in results]), 'Total_Matches': '', 'Files_With_Matches': '', 'Status': ''},
-            {'Search_Value': 'Values not found', 'Found': len([v for v in search_stats['search_values'] if v not in results]), 'Total_Matches': '', 'Files_With_Matches': '', 'Status': ''},
-            {'Search_Value': 'Total matches', 'Found': '', 'Total_Matches': search_stats['total_matches'], 'Files_With_Matches': '', 'Status': ''},
-            {'Search_Value': 'Files with matches', 'Found': '', 'Total_Matches': '', 'Files_With_Matches': search_stats['files_with_matches'], 'Status': ''},
-            {'Search_Value': 'Files with errors', 'Found': '', 'Total_Matches': '', 'Files_With_Matches': len(search_stats['files_with_errors']), 'Status': ''}
+            {'Dato_Buscado': '=== RESUMEN ===', 'Encontrado': '', 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': '', 'Estado': ''},
+            {'Dato_Buscado': 'Total valores buscados', 'Encontrado': len(search_stats['search_values']), 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': '', 'Estado': ''},
+            {'Dato_Buscado': 'Valores encontrados', 'Encontrado': len([v for v in search_stats['search_values'] if v in results]), 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': '', 'Estado': ''},
+            {'Dato_Buscado': 'Valores no encontrados', 'Encontrado': len([v for v in search_stats['search_values'] if v not in results]), 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': '', 'Estado': ''},
+            {'Dato_Buscado': 'Total coincidencias', 'Encontrado': '', 'Total_Coincidencias': search_stats['total_matches'], 'Archivos_Con_Coincidencias': '', 'Estado': ''},
+            {'Dato_Buscado': 'Archivos con coincidencias', 'Encontrado': '', 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': search_stats['files_with_matches'], 'Estado': ''},
+            {'Dato_Buscado': 'Archivos con errores', 'Encontrado': '', 'Total_Coincidencias': '', 'Archivos_Con_Coincidencias': len(search_stats['files_with_errors']), 'Estado': ''}
         ])
         
         return pl.DataFrame(summary_data)
 
-    # --- Function to align DataFrame schemas with type consistency ---
+    # --- Function to align DataFrame schemas dynamically ---
     def align_dataframe_schemas(dataframes):
-        """Align all DataFrames to have the same column structure with consistent types"""
+        """Align all DataFrames to have the same column structure - preserving original structure"""
         if not dataframes:
             return []
         
-        # Get all unique columns from all DataFrames
+        # Get all unique columns from all DataFrames, but preserve order from first DataFrame
         all_columns = set()
-        for df in dataframes:
-            all_columns.update(df.columns)
+        column_order = []
         
-        # Convert to sorted list for consistency
-        all_columns = sorted(list(all_columns))
+        # First, collect original column order from the first dataframe (excluding metadata columns)
+        if dataframes and len(dataframes) > 0:
+            first_df = dataframes[0]
+            metadata_cols = {"Origen_Archivo", "Dato_Buscado", "Hoja_Origen"}
+            original_cols = [col for col in first_df.columns if col not in metadata_cols]
+            column_order = original_cols
+        
+        # Then collect all unique columns from all dataframes
+        for df in dataframes:
+            for col in df.columns:
+                if col not in metadata_cols:  # Exclude metadata columns from dynamic collection
+                    all_columns.add(col)
+        
+        # If we have column order from first DF, use it as base, then add any new columns
+        if column_order:
+            # Add any columns that weren't in the first DF but appear in others
+            extra_cols = sorted([col for col in all_columns if col not in column_order])
+            final_column_order = column_order + extra_cols
+        else:
+            final_column_order = sorted(list(all_columns))
+        
+        # Add metadata columns at the beginning
+        final_column_order = ["Origen_Archivo", "Dato_Buscado", "Hoja_Origen"] + final_column_order
         
         aligned_dataframes = []
         for df in dataframes:
@@ -254,13 +337,13 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                 df = df.cast({col: pl.Utf8 for col in df.columns})
                 
                 # Add missing columns with empty string values (not null)
-                missing_columns = [col for col in all_columns if col not in df.columns]
+                missing_columns = [col for col in final_column_order if col not in df.columns]
                 if missing_columns:
                     for col in missing_columns:
                         df = df.with_columns(pl.lit("").alias(col))
                 
-                # Reorder columns to match the common schema
-                df = df.select(all_columns)
+                # Reorder columns to match the final schema
+                df = df.select(final_column_order)
                 aligned_dataframes.append(df)
                 
             except Exception as e:
@@ -273,7 +356,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                     for col in missing_columns:
                         df_pd[col] = ""
                     # Reorder columns
-                    df_pd = df_pd[all_columns]
+                    df_pd = df_pd[final_column_order]
                     aligned_dataframes.append(pl.from_pandas(df_pd))
                 except Exception as pd_error:
                     print(f"❌ Could not align DataFrame: {pd_error}")
@@ -353,7 +436,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             print("❗ No data to export.")
             return None
         
-        # FIX: Use safe combination instead of direct concatenation
+        # Use safe combination instead of direct concatenation
         print("🔄 Combining DataFrames safely...")
         combined_pl = combine_dataframes_safely(all_results)
         
@@ -373,10 +456,10 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             
             with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
                 # DETAIL_SEARCH sheet with all results (ORGANIZED)
-                combined_pl.to_pandas().to_excel(writer, sheet_name="DETAIL_SEARCH", index=False)
+                combined_pl.to_pandas().to_excel(writer, sheet_name="DETALLE_BUSQUEDA", index=False)
                 
                 # SEARCH_SUMMARY sheet with summary
-                summary_pl.to_pandas().to_excel(writer, sheet_name="SEARCH_SUMMARY", index=False)
+                summary_pl.to_pandas().to_excel(writer, sheet_name="RESUMEN_BUSQUEDA", index=False)
                 
                 # Separate sheets by search value
                 for value, df_list in results.items():
@@ -384,10 +467,12 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                         # Combine value-specific dataframes safely
                         value_combined = combine_dataframes_safely(df_list)
                         if value_combined is not None and len(value_combined) > 0:
-                            sheet_name = f"VAL_{str(value)[:25]}"
-                            sheet_name = ''.join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-'))
+                            sheet_name = f"VALOR_{str(value)[:25]}"
+                            sheet_name = ''.join(c for c in sheet_name if c.isalnum() or c in (' ', '_', '-')).strip()
                             if not sheet_name:
-                                sheet_name = f"Value_{hash(value) % 10000:04d}"
+                                sheet_name = f"Valor_{hash(value) % 10000:04d}"
+                            # Limit sheet name to 31 characters (Excel limit)
+                            sheet_name = sheet_name[:31]
                             value_combined.to_pandas().to_excel(writer, sheet_name=sheet_name, index=False)
             
             print(f"✅ Successfully exported to Excel: {excel_path}")
@@ -400,11 +485,11 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             # Try 2: Export to CSV (multiple files)
             try:
                 # Main file with all results
-                main_csv_path = os.path.join(output_path, f"{base_filename}_DETAIL_SEARCH.csv")
+                main_csv_path = os.path.join(output_path, f"{base_filename}_DETALLE_BUSQUEDA.csv")
                 combined_pl.write_csv(main_csv_path)
                 
                 # Summary file
-                summary_csv_path = os.path.join(output_path, f"{base_filename}_SEARCH_SUMMARY.csv")
+                summary_csv_path = os.path.join(output_path, f"{base_filename}_RESUMEN_BUSQUEDA.csv")
                 summary_pl.write_csv(summary_csv_path)
                 
                 # Files by search value
@@ -412,8 +497,10 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                     if df_list:
                         value_combined = combine_dataframes_safely(df_list)
                         if value_combined is not None and len(value_combined) > 0:
-                            safe_value_name = "".join(c for c in value if c.isalnum() or c in (' ', '_', '-'))
-                            value_csv_path = os.path.join(output_path, f"{base_filename}_VAL_{safe_value_name[:50]}.csv")
+                            safe_value_name = "".join(c for c in str(value) if c.isalnum() or c in (' ', '_', '-')).strip()
+                            if not safe_value_name:
+                                safe_value_name = f"Valor_{hash(value) % 10000:04d}"
+                            value_csv_path = os.path.join(output_path, f"{base_filename}_VALOR_{safe_value_name[:50]}.csv")
                             value_combined.write_csv(value_csv_path)
                 
                 print(f"✅ Successfully exported to CSV files in: {output_path}")
@@ -429,14 +516,14 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                     
                     # Create organized JSON structure
                     json_data = {
-                        "search_summary": summary_pl.to_dicts(),
-                        "search_details": combined_pl.to_dicts(),
-                        "search_metadata": {
-                            "total_files_processed": search_stats['total_files_processed'],
-                            "files_with_matches": search_stats['files_with_matches'],
-                            "total_matches": search_stats['total_matches'],
-                            "search_timestamp": datetime_now,
-                            "files_with_errors": search_stats['files_with_errors']
+                        "resumen_busqueda": summary_pl.to_dicts(),
+                        "detalle_busqueda": combined_pl.to_dicts(),
+                        "metadata_busqueda": {
+                            "total_archivos_procesados": search_stats['total_files_processed'],
+                            "archivos_con_coincidencias": search_stats['files_with_matches'],
+                            "total_coincidencias": search_stats['total_matches'],
+                            "fecha_hora_busqueda": datetime_now,
+                            "archivos_con_errores": search_stats['files_with_errors']
                         }
                     }
                     
@@ -463,11 +550,11 @@ def search_values_in_files(directory, output_path, search_list, process_data):
     
     # --- FILE SEARCH ---
     
-    # Find files recursively
+    # Find files recursively - supporting both .parquet and .parquets extensions
     print("🔍 Searching for files in directory and subdirectories...")
     
     csv_files = find_files_recursive(directory, ['.csv'])
-    parquet_files = find_files_recursive(directory, ['.parquet'])
+    parquet_files = find_files_recursive(directory, ['.parquet', '.parquets'])  # Support both extensions
     excel_files = find_files_recursive(directory, ['.xlsx', '.xls'])
     
     print(f"📊 Found {len(csv_files)} CSV files")
@@ -501,10 +588,10 @@ def search_values_in_files(directory, output_path, search_list, process_data):
         
         file_has_matches = False
         for value in search_values:
-            matching_rows = search_in_dataframe_polars(df, value, relative_path, "N/A")
+            matching_rows = search_in_dataframe_polars(df, value, relative_path, "CSV")
             
             if matching_rows is not None and len(matching_rows) > 0:
-                print(f"✅ Value '{value}' found in CSV: {relative_path} ({len(matching_rows)} matches)")
+                print(f"✅ Valor '{value}' encontrado en CSV: {relative_path} ({len(matching_rows)} coincidencias)")
                 
                 if value not in results:
                     results[value] = []
@@ -538,7 +625,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
         for value in search_values:
             matching_rows = search_in_dataframe_polars(df, value, relative_path, "Parquet")
             if matching_rows is not None and len(matching_rows) > 0:
-                print(f"✅ Value '{value}' found in Parquet: {relative_path} ({len(matching_rows)} matches)")
+                print(f"✅ Valor '{value}' encontrado en Parquet: {relative_path} ({len(matching_rows)} coincidencias)")
                 
                 if value not in results:
                     results[value] = []
@@ -567,10 +654,10 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             sheet_names = wb.sheetnames
             wb.close()
             
-            print(f"📑 Excel file '{relative_path}' has {len(sheet_names)} sheets")
+            print(f"📑 Archivo Excel '{relative_path}' tiene {len(sheet_names)} hojas")
             
         except Exception as e:
-            print(f"❌ Could not read Excel file {relative_path}: {e}")
+            print(f"❌ No se pudo leer el archivo Excel {relative_path}: {e}")
             search_stats['files_with_errors'].append(f"{relative_path} - Excel error: {e}")
             continue
 
@@ -588,7 +675,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                 for value in search_values:
                     matching_rows = search_in_dataframe_polars(df, value, relative_path, sheet_name)
                     if matching_rows is not None and len(matching_rows) > 0:
-                        print(f"✅ Value '{value}' found in Excel: {relative_path} (Sheet: {sheet_name}) - {len(matching_rows)} matches")
+                        print(f"✅ Valor '{value}' encontrado en Excel: {relative_path} (Hoja: {sheet_name}) - {len(matching_rows)} coincidencias")
                         
                         if value not in results:
                             results[value] = []
@@ -601,39 +688,39 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                         search_stats['matches_by_value'][value] += len(matching_rows)
                         
             except Exception as e:
-                print(f"❌ Could not read sheet '{sheet_name}' from {relative_path}: {e}")
+                print(f"❌ No se pudo leer la hoja '{sheet_name}' de {relative_path}: {e}")
                 continue
         
         if file_has_matches:
             search_stats['files_with_matches'] += 1
 
     # --- FINAL RESULTS ---
-    print("\n📈 SEARCH SUMMARY:")
+    print("\n📈 RESUMEN DE BÚSQUEDA:")
     print("=" * 60)
     for value in search_values:
         if value in results and len(results[value]) > 0:
             total_matches = sum(len(df) for df in results[value])
-            print(f"✅ '{value}': {total_matches} matches in {len(results[value])} files")
+            print(f"✅ '{value}': {total_matches} coincidencias en {len(results[value])} archivos")
         else:
-            print(f"❌ '{value}': No matches found")
+            print(f"❌ '{value}': No se encontraron coincidencias")
     
     print("=" * 60)
-    print(f"📊 TOTAL: {search_stats['total_matches']} matches in {search_stats['files_with_matches']} files")
-    print(f"📁 Processed: {search_stats['total_files_processed']} files")
-    print(f"⚠️ Errors: {len(search_stats['files_with_errors'])} files")
+    print(f"📊 TOTAL: {search_stats['total_matches']} coincidencias en {search_stats['files_with_matches']} archivos")
+    print(f"📁 Procesados: {search_stats['total_files_processed']} archivos")
+    print(f"⚠️ Errores: {len(search_stats['files_with_errors'])} archivos")
 
     if not results:
-        print("❗ No matches found in any file. Nothing to export.")
+        print("❗ No se encontraron coincidencias en ningún archivo. Nada que exportar.")
         return None, search_stats
 
     # Export results
-    print(f"\n💾 Exporting results to: {base_output_path}")
+    print(f"\n💾 Exportando resultados a: {base_output_path}")
     exported_file = export_results(results, search_stats, base_output_path, base_filename)
     
     if exported_file:
-        print(f"📁 Results successfully exported to: {exported_file}")
-        print(f"🎯 Search completed! Total matches: {search_stats['total_matches']}")
+        print(f"📁 Resultados exportados exitosamente a: {exported_file}")
+        print(f"🎯 ¡Búsqueda completada! Total de coincidencias: {search_stats['total_matches']}")
     else:
-        print("❌ Failed to export results using all methods.")
+        print("❌ Falló la exportación de resultados usando todos los métodos.")
     
     return results, search_stats
