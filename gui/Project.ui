@@ -3325,7 +3325,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string> Validación de archivos XLSX</string>
+         <string> Validación de archivos Excel</string>
         </property>
         <property name="icon">
          <iconset>

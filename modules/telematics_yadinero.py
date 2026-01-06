@@ -175,7 +175,7 @@ def Email_Data(Data_):
 
     columns_to_stack = [f"email{i}" for i in range(1, 6)]
     column_new = ["correo", "email"]
-    columns_to_drop = columns_to_stack #+ column_new
+    columns_to_drop = columns_to_stack + column_new
     Stacked_Data_Frame = Data_.select("*", *columns_to_drop)
     
     Stacked_Data_Frame = Stacked_Data_Frame.select(
