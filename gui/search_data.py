@@ -28,12 +28,12 @@ def search_values_in_files(directory, output_path, search_list, process_data):
         'total_files_processed': 0,
         'files_with_matches': 0,
         'total_matches': 0,
-        'files_by_type': {'csv': 0, 'excel': 0, 'parquet': 0},
+        'files_by_type': {'csv': 0, 'excel': 0, 'parquet': 0, 'txt': 0},  # Añadido TXT
         'matches_by_value': {},
         'files_with_errors': []
     }
     
-    print("📂 Searching through CSV, Excel and Parquet files in all subdirectories...")
+    print("📂 Searching through CSV, Excel, Parquet and TXT files in all subdirectories...")
 
     # Function to find files recursively
     def find_files_recursive(directory, extensions):
@@ -112,6 +112,56 @@ def search_values_in_files(directory, output_path, search_list, process_data):
                             print(f"💥 All Parquet reading methods failed for {filename}: {e5}")
                             search_stats['files_with_errors'].append(f"{relative_path} - Parquet error: {e5}")
                             return None
+
+    # Nueva función para leer archivos TXT
+    def read_txt_dynamic(file_path):
+        """Lee archivos TXT con diferentes codificaciones y delimitadores"""
+        filename = os.path.basename(file_path)
+        relative_path = os.path.relpath(file_path, directory)
+        
+        print(f"📝 Attempting to read TXT: {relative_path}")
+        
+        # Lista de codificaciones a probar
+        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-16']
+        
+        for encoding in encodings:
+            try:
+                # Primero intentamos leer como CSV con diferentes delimitadores
+                for delimiter in [',', ';', '\t', '|', ' ']:
+                    try:
+                        df = pd.read_csv(file_path, delimiter=delimiter, encoding=encoding, 
+                                        dtype=str, low_memory=False, on_bad_lines='skip')
+                        if not df.empty and len(df.columns) > 1:
+                            print(f"✅ TXT loaded as CSV with delimiter '{delimiter}': {filename} - Shape: {df.shape}")
+                            return df
+                    except:
+                        continue
+                
+                # Si no funciona como CSV estructurado, leer como texto plano
+                with open(file_path, 'r', encoding=encoding, errors='ignore') as f:
+                    content = f.read()
+                
+                # Si el archivo tiene contenido, crear un DataFrame con una columna
+                if content.strip():
+                    lines = content.split('\n')
+                    # Filtrar líneas vacías
+                    lines = [line.strip() for line in lines if line.strip()]
+                    
+                    if lines:
+                        # Crear DataFrame con el contenido
+                        df = pd.DataFrame({'Content': lines})
+                        print(f"✅ TXT loaded as plain text: {filename} - {len(lines)} lines")
+                        return df
+                
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                print(f"⚠️ Error reading TXT with encoding {encoding}: {e}")
+                continue
+        
+        print(f"❌ Could not read TXT file: {filename}")
+        search_stats['files_with_errors'].append(f"{relative_path} - TXT encoding/delimiter error")
+        return None
 
     # Rest of the CSV and Excel reading functions remain the same
     def read_csv_dynamic(file_path, delimiter=';'):
@@ -550,18 +600,20 @@ def search_values_in_files(directory, output_path, search_list, process_data):
     
     # --- FILE SEARCH ---
     
-    # Find files recursively - supporting both .parquet and .parquets extensions
+    # Find files recursively - ahora incluyendo TXT
     print("🔍 Searching for files in directory and subdirectories...")
     
     csv_files = find_files_recursive(directory, ['.csv'])
-    parquet_files = find_files_recursive(directory, ['.parquet', '.parquets'])  # Support both extensions
+    parquet_files = find_files_recursive(directory, ['.parquet', '.parquets'])
     excel_files = find_files_recursive(directory, ['.xlsx', '.xls'])
+    txt_files = find_files_recursive(directory, ['.txt', '.text'])  # Añadido TXT
     
     print(f"📊 Found {len(csv_files)} CSV files")
     print(f"⚡ Found {len(parquet_files)} Parquet files")
     print(f"📑 Found {len(excel_files)} Excel files")
+    print(f"📝 Found {len(txt_files)} TXT files")  # Nuevo mensaje
     
-    total_files = len(csv_files) + len(parquet_files) + len(excel_files)
+    total_files = len(csv_files) + len(parquet_files) + len(excel_files) + len(txt_files)
     search_stats['total_files_processed'] = total_files
     print(f"📁 Total files to process: {total_files}")
 
@@ -626,6 +678,43 @@ def search_values_in_files(directory, output_path, search_list, process_data):
             matching_rows = search_in_dataframe_polars(df, value, relative_path, "Parquet")
             if matching_rows is not None and len(matching_rows) > 0:
                 print(f"✅ Valor '{value}' encontrado en Parquet: {relative_path} ({len(matching_rows)} coincidencias)")
+                
+                if value not in results:
+                    results[value] = []
+                results[value].append(matching_rows)
+                search_stats['total_matches'] += len(matching_rows)
+                file_has_matches = True
+                
+                if value not in search_stats['matches_by_value']:
+                    search_stats['matches_by_value'][value] = 0
+                search_stats['matches_by_value'][value] += len(matching_rows)
+        
+        if file_has_matches:
+            search_stats['files_with_matches'] += 1
+
+    # --- Search TXT Files ---
+    print(f"📝 Processing {len(txt_files)} TXT files...")
+    
+    for file_path in txt_files:
+        filename = os.path.basename(file_path)
+        relative_path = os.path.relpath(file_path, directory)
+        
+        search_stats['files_by_type']['txt'] += 1
+        
+        df_pd = read_txt_dynamic(file_path)
+        
+        if df_pd is None:
+            print(f"⛔ Skipping unreadable TXT: {relative_path}")
+            continue
+        
+        # Convert to Polars DataFrame
+        df = pl.from_pandas(df_pd)
+        
+        file_has_matches = False
+        for value in search_values:
+            matching_rows = search_in_dataframe_polars(df, value, relative_path, "TXT")
+            if matching_rows is not None and len(matching_rows) > 0:
+                print(f"✅ Valor '{value}' encontrado en TXT: {relative_path} ({len(matching_rows)} coincidencias)")
                 
                 if value not in results:
                     results[value] = []
