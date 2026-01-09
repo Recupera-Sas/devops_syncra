@@ -32,7 +32,7 @@ def function_complete_telematics(path, output_directory, partitions, process_res
     mejorperfil_filter = (col("mejorperfil") != "Fallecido") & (col("mejorperfil") != "Numero Errado") & (col("mejorperfil") != "Posible Fraude") & (col("mejorperfil") != "Reclamacion")
     ultimoperfil_filter = (col("ultimoperfil") != "Fallecido") & (col("ultimoperfil") != "Numero Errado") & (col("ultimoperfil") != "Posible Fraude") & (col("ultimoperfil") != "Reclamacion")
     Data_Frame = Data_Frame.filter(col("valor_pago").isNull())
-    Data_Frame = Data_Frame.filter(mejorperfil_filter & ultimoperfil_filter)
+    #Data_Frame = Data_Frame.filter(mejorperfil_filter & ultimoperfil_filter)
 
     Save_Data_Frame(Data_Frame, output_directory, partitions, process_resource)
 
@@ -82,7 +82,7 @@ def Save_Data_Frame (Data_Frame, Directory_to_Save, partitions, resource):
 
 ### Dinamización de columnas de celulares
 def Phone_Data(Data_):
-    
+
     if "telefonos" not in Data_.columns and "celulares_agregados" in Data_.columns:
         column_array_phone = "celulares_agregados"
     else:
@@ -107,7 +107,8 @@ def Phone_Data(Data_):
 
     final_df = final_df.drop(column_array_phone, "telefonos_limpios", "telefonos_array", "telefonos_array_string")
 
-    column_new = ["telefono", "Dato_Contacto_1"]
+    #column_new = ["telefono", "Dato_Contacto_1"]
+    column_new = ["Dato_Contacto_1"]
     columns_to_drop = column_new
 
     Stacked_Data_Frame = final_df.select("*", *columns_to_drop)
@@ -120,7 +121,7 @@ def Phone_Data(Data_):
     # Eliminar columnas dummy usadas para stack
     final_df = Stacked_Data_Frame.drop(*columns_to_drop)
     Stacked_Data_Frame = final_df.select("*")
-    
+
     return final_df
 
 def Email_Data(Data_):
@@ -217,7 +218,9 @@ def conversion_process (Data_Frame, output_directory, partitions, Contacts_Min):
     if "nombre_cliente" in Data_.columns:
         Data_ = Data_.withColumn("NOMBRE CORTO", upper(col("nombre_cliente")))
         Data_ = change_name_column(Data_, "NOMBRE CORTO")
+        name = "nombre_cliente"
     else:
+        name = "nombrecompleto"
         Data_ = Data_.withColumn("NOMBRE CORTO", upper(col("nombrecompleto")))
         Data_ = change_name_column(Data_, "NOMBRE CORTO")
         
@@ -236,9 +239,9 @@ def conversion_process (Data_Frame, output_directory, partitions, Contacts_Min):
 
     Data_ = Renamed_Column(Data_)
     
-    Data_ = Data_.select("Identificacion", "nombrecompleto", "ID_Payjoy", "bucket_dias_mora", f"{Price_Col}", \
+    Data_ = Data_.select("Identificacion", name, "ID_Payjoy", "bucket_dias_mora", f"{Price_Col}", \
                          "saldo_total", "valor_pago", "fabricante", "tipo_base", "ultimoperfil", "mejorperfil", "fecha_pago", \
-                         "fechapromesa", "Form_Moneda", "NOMBRE CORTO", "Dato_Contacto", "Hora_Envio", "Hora_Real", "Fecha_Hoy")
+                         "fechagestion", "Form_Moneda", "NOMBRE CORTO", "Dato_Contacto", "Hora_Envio", "Hora_Real", "Fecha_Hoy")
     
     return Data_
 
