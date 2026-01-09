@@ -1,27 +1,24 @@
 import pandas as pd
 from datetime import datetime
 import os
-import re
 
 def transform_csv_to_excel_dashboard(input_folder, output_folder):
     """
-    Reads CSV files from an input folder, transforms them based on predefined
-    mappings and logic, and saves them as Excel files in an output folder.
-
-    Args:
-        input_folder (str): The path to the folder containing the source CSV files.
-        output_folder (str): The path to the folder where the output Excel files will be saved.
+    Transforma archivos CSV a Excel para el Dashboard filtrando por 'MENSAJERIA'.
     """
-    # --- Define all mappings and configurations (can be passed as arguments too) ---
-    # Define the column mapping from source names to target names
+    # Configuración de rutas y carpetas
+    timestamp_folder = datetime.now().strftime('%Y-%m-%d')
+    output_folder = os.path.join(output_folder, f"Transformación {timestamp_folder} DASHBOARD")
     
-    output_folder = f"{output_folder}/Transformación {datetime.now().strftime('%Y-%m-%d')} DASHBOARD/"
-    
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # --- Mapeos y Configuraciones ---
     source_to_target_mapping = {
         "IDENTIFICACION": "Identificacion",
         "CUENTA": "Cuenta_Next",
-        "MORA": "Edad_Mora",
-        "PRODUCTO": "CRM",
+        "MORA": "marca2",
+        "PRODUCTO": "PRODUCTO",
         "mod_init_cta": "Saldo_Asignado",
         "SEGMENTO": "Segmento",
         "VALOR_PAGO": "Form_Moneda",
@@ -29,11 +26,9 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
         "RANGO_DEUDA": "Rango",
         "REFERENCIA": "Referencia",
         "TELEFONOS": "Dato_Contacto",
-        "MORA": "marca2",
         "DESCUENTO": "DCTO",
         "VALOR_DE_PAGAR": "DEUDA_REAL",
         "FLP": "FLP",
-        "PRODUCTO": "PRODUCTO",
         "TIPO_PAGO": "TIPO_PAGO",
         "MEJOR_PERFIL": "MEJOR PERFIL",
         "DIASMORA": "DIAS DE MORA",
@@ -45,7 +40,6 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
         "HORA_EJECUCION": "Hora_Real",
     }
 
-    # Define the final column order
     final_column_order = [
         "Identificacion", "Cuenta_Next", "Cuenta", "Fecha_Asignacion", "Edad_Mora", "CRM", "Saldo_Asignado",
         "Segmento", "Form_Moneda", "Nombre_Completo", "Rango", "Referencia", "Dato_Contacto",
@@ -54,7 +48,6 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
         "RANKING STATUS", "CANTIDAD SERVICIOS", "NOMBRE CORTO", "TIPO BASE", "SMS", "REQUEST ID"
     ]
 
-    # Define the CRM translation mapping
     crm_translation_map = {
         'Postpago': 'BSCS',
         'Equipo': 'ASCARD',
@@ -63,41 +56,44 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
     }
 
     date_file = datetime.now().strftime("%Y-%m")
-
-    # Define the columns to be filled with literal values (TODOS se fuerzan a STRING)
     literal_columns = {
         "Fecha_Asignacion": str(date_file),
         "fechapromesa": "Desconocida",
         "RANKING STATUS": "Dinámico",
-        "CANTIDAD SERVICIOS": "0", # <-- Cambiado a String
+        "CANTIDAD SERVICIOS": "0",
     }
-    # --- End of configurations ---
 
-    # Ensure the destination folder exists
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+    reverse_mapping = {v: k for k, v in source_to_target_mapping.items()}
 
-    # Iterate through all files in the source folder
+    # --- Procesamiento de Archivos ---
     for filename in os.listdir(input_folder):
         if filename.endswith(".csv"):
             file_path = os.path.join(input_folder, filename)
-            print(f"Processing file: {filename}")
-
+            
             try:
-                # Read the CSV file with the semicolon delimiter
                 df = pd.read_csv(file_path, sep=";", encoding='Latin-1', low_memory=False)
+                
+                if 'HERRAMIENTA_ENVIO' not in df.columns:
+                    print(f"⚠️ Saltando {filename}: Falta columna HERRAMIENTA_ENVIO")
+                    continue
+                
+                # Filtrado
+                mask = df['HERRAMIENTA_ENVIO'].astype(str).str.contains('MENSAJERIA', case=False, na=False)
+                if not mask.any():
+                    print(f"⏭️ Saltando {filename}: No contiene filas 'MENSAJERIA'")
+                    continue
+                
+                df = df[mask].copy()
                 new_df = pd.DataFrame()
                 
-                reverse_mapping = {v: k for k, v in source_to_target_mapping.items()}
-                
+                # Construcción de columnas
                 for target_col in final_column_order:
-                    # Handle special cases and literals
                     if target_col in ['Fecha_Envio', 'Hora_Real', 'Hora_Envio']:
                         new_df['Fecha_Envio'] = df['FECHA_EJECUCION']
                         new_df['Hora_Real'] = df['HORA_EJECUCION']
-                        new_df['Hora_Envio'] = new_df['Hora_Real'].str[:2]
+                        new_df['Hora_Envio'] = df['HORA_EJECUCION'].astype(str).str[:2]
                     elif target_col in literal_columns:
-                        new_df[target_col] = literal_columns[target_col] 
+                        new_df[target_col] = literal_columns[target_col]
                     elif target_col == 'Cuenta_Next' and 'CUENTA' in df.columns:
                         new_df['Cuenta_Next'] = df['CUENTA']
                     elif target_col == 'Cuenta' and 'CUENTA_REAL' in df.columns:
@@ -112,36 +108,32 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                         new_df['Dato_Contacto'] = df['TELEFONOS']
                     else:
                         source_col = reverse_mapping.get(target_col)
-                        if source_col and source_col in df.columns:
-                            new_df[target_col] = df[source_col]
-                        else:
-                            new_df[target_col] = None
+                        new_df[target_col] = df[source_col] if source_col in df.columns else None
 
-                new_df['CRM'] = new_df['CRM'].map(crm_translation_map).fillna(new_df['CRM']).astype(str) # <-- Asegura que CRM es string
-                new_df['Saldo_Asignado'] = new_df['Saldo_Asignado'].map(crm_translation_map).fillna(new_df['Saldo_Asignado']).astype(str).str.replace('.', ',', regex=False)
-                new_df['DEUDA_REAL'] = new_df['DEUDA_REAL'].map(crm_translation_map).fillna(new_df['DEUDA_REAL']).astype(str).str.replace('.', ',', regex=False)
-                new_df['Segmento'] = new_df['Segmento'].str.upper().astype(str).str.replace('NO APLICA', 'PERSONAS', regex=False).str.replace('PERSONA', 'PERSONAS', regex=False)
+                # Transformaciones de datos
+                new_df['CRM'] = new_df['CRM'].map(crm_translation_map).fillna(new_df['CRM']).astype(str)
                 
-                # Conversión de Cuentas a string se mantiene para el reemplazo de guiones
-                if 'Cuenta_Next' in new_df.columns:
-                    new_df['Cuenta_Next'] = new_df['Cuenta_Next'].astype(str).str.replace('-', '', regex=False)
-                if 'Cuenta' in new_df.columns:
-                    new_df['Cuenta'] = new_df['Cuenta'].astype(str).str.replace('-', '', regex=False)
+                for col in ['Saldo_Asignado', 'DEUDA_REAL']:
+                    new_df[col] = new_df[col].astype(str).str.replace('.', ',', regex=False)
+                
+                new_df['Segmento'] = (new_df['Segmento'].astype(str).str.upper()
+                                      .replace(['NO APLICA', 'PERSONA'], 'PERSONAS', regex=False))
+                
+                for col in ['Cuenta_Next', 'Cuenta']:
+                    if col in new_df.columns:
+                        new_df[col] = new_df[col].astype(str).str.replace('-', '', regex=False)
 
-                # --- Step 4: Save the transformed DataFrame to a new Excel file ---
-                output_filename = filename.replace(".csv", ".xlsx")
-                output_filepath = os.path.join(output_folder, output_filename)
-                
-                # Antes de guardar, se realiza un .astype(str) final para TODAS las columnas 
-                # para forzar la escritura en Excel como texto plano, previniendo la conversión automática.
+                # Limpieza final y guardado (Todo a String para evitar errores de Excel)
                 for col in new_df.columns:
                     new_df[col] = new_df[col].astype(str).replace('nan', '', regex=False)
                 
+                output_filename = filename.replace(".csv", ".xlsx")
+                output_filepath = os.path.join(output_folder, output_filename)
                 new_df.to_excel(output_filepath, sheet_name='Hoja1', index=False, engine='openpyxl')
                 
-                print(f"Successfully processed {filename} and saved as {output_filename}")
+                print(f"✅ Procesado: {filename} -> {output_filename}")
 
             except Exception as e:
-                print(f"Error processing file {filename}: {e}")
+                print(f"❌ Error en {filename}: {e}")
 
-    print("\nAll files processed.")
+    print("\n🏁 Proceso finalizado. Todos los archivos han sido validados.")
