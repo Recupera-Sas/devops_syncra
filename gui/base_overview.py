@@ -1,4 +1,6 @@
 import os
+import glob
+import shutil
 from pathlib import Path
 import modules.report_exclusions
 from gui.dynamic_thread import DynamicThread
@@ -409,14 +411,21 @@ class Charge_DB(QtWidgets.QMainWindow):
         # Apply the transformations to the DataFrame
         Data_Root = Data_Root.with_columns(expressions)
         
+        
         Data_Root = Data_Root.with_columns(pl.all().cast(pl.Utf8))
         
         # Initial selection of columns 1_ to 61_ (Equivalent to Data_Root.select(columns_to_list))
         columns_to_select = [f"{i}_" for i in range(1, 62)]
         Data_Root = Data_Root.select(columns_to_select)
         
+        
         # Filter by origins (Equivalent to Data_Root.filter(col("3_").isin(list_origins)))
         Data_Root = Data_Root.filter(col("3_").is_in(list_origins))
+        
+        # Cruice with data TIPOBASE
+        source_path = r"\\172.128.10.200\4. Gestion de Operaciones\2. Claro\Data compartida\NO BORRAR CONEXIÓN API\Nombre Campana"
+        Data_Root = self.process_cta_cruice(Data_Root)
+        Data_Root = self.handle_files_and_join(Data_Root, source_path)
 
         # --- Feature Engineering and Conditional Logic ---
         Data_Root = Data_Root.with_columns(
@@ -1218,3 +1227,82 @@ class Charge_DB(QtWidgets.QMainWindow):
             
         except Exception as e:
             print(f"❌ Error processing {file}: {e}")
+            
+    def process_cta_cruice(self, df):
+        """
+        Cleans column '2_' by removing dots and creating 'CTA_CRUCE'
+        """
+        return df.with_columns(
+            pl.col("2_")
+            .cast(pl.String) # Asegurar que sea texto
+            .str.replace_all(r"\.", "")
+            .alias("CTA_CRUCE")
+        )
+        
+    def handle_files_and_join(self, Data_Root, src_folder):
+        # 1. Setup paths
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_folder = os.path.join(script_dir, "temp_spark_30042000")
+        
+        if not os.path.exists(temp_folder):
+            os.makedirs(temp_folder, exist_ok=True)
+            print(f"📁 Temporary folder created: {temp_folder}")
+
+        try:
+            # 2. Copy files
+            copied_count = 0
+            for file in os.listdir(src_folder):
+                if file.lower().endswith('.csv'):
+                    shutil.copy2(os.path.join(src_folder, file), os.path.join(temp_folder, file))
+                    copied_count += 1
+            
+            print(f"✅ Successfully copied {copied_count} files to temporary directory")
+
+            # 3. Read and Union CSV files
+            csv_files = glob.glob(os.path.join(temp_folder, "*.csv"))
+            
+            if not csv_files:
+                print("⚠️ Warning: No CSV files found for joining.")
+                return Data_Root
+
+            df_list = []
+            for f in csv_files:
+                # We force 'CUENTA' to be String during the read to avoid type mismatch
+                temp_df = pl.read_csv(
+                    f, 
+                    separator=";", 
+                    infer_schema_length=10000,
+                    schema_overrides={"CUENTA": pl.String} # Force String type here
+                )
+                df_list.append(temp_df)
+            
+            df_cruce = pl.concat(df_list).unique(subset=["CUENTA"])
+            print(f"📖 CSV data loaded. Total unique rows for join: {df_cruce.height}")
+
+            # 4. Perform Left Join
+            # Both keys (CTA_CRUCE and CUENTA) are now String
+            result = Data_Root.join(
+                df_cruce.select(["CUENTA", "TIPO_BASE"]),
+                left_on="CTA_CRUCE",
+                right_on="CUENTA",
+                how="left"
+            )
+
+            # 5. Update column '12_' and cleanup
+            result = result.with_columns(
+                pl.coalesce(pl.col("TIPO_BASE"), pl.col("12_")).alias("12_")
+            ).drop(["CTA_CRUCE", "TIPO_BASE"])
+
+            print("🔗 Join completed and column '12_' updated.")
+            return result
+
+        except Exception as e:
+            print(f"❌ Error during processing: {e}")
+            return Data_Root
+
+        finally:
+            # 6. Cleanup
+            if os.path.exists(temp_folder):
+                shutil.rmtree(temp_folder)
+                print("🗑️ Temporary folder deleted successfully")
+        
