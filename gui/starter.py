@@ -1345,7 +1345,7 @@ class Init_APP():
             Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a validar.")
             Mbox_File_Error.exec()
     
-    def folder_files_process_ng(self):
+    def folder_report_daily_payjoy(self):
 
         type_process = "folder"
         
@@ -1375,7 +1375,7 @@ class Init_APP():
             Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a procesar.")
             Mbox_File_Error.exec()
     
-    def folder_report_daily_payjoy(self):
+    def folder_files_process_ng(self):
 
         type_process = "folder"
         
