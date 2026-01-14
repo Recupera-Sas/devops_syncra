@@ -16,6 +16,7 @@ import cloud.conversion_csv_to_json
 import cloud.conversion_csv_to_parquet
 import gui.insignias
 import gui.payments
+import gui.daily_payjoy
 import gui.ranking_read
 import gui.search_data
 import gui.search_demograhic
@@ -228,6 +229,8 @@ class Init_APP():
         self.process_data.pushButton_11.clicked.connect(self.folder_sms_claro_read)
         self.process_data.commandLinkButton_21.clicked.connect(self.folder_validation)
         
+        self.process_data.pushButton_31.clicked.connect(self.folder_report_daily_payjoy)
+
         self.process_data.commandLinkButton_17.clicked.connect(self.folder_files_process_ng)
         self.process_data.commandLinkButton_16.clicked.connect(self.folder_files_process_psa)
         self.process_data.commandLinkButton_18.clicked.connect(self.folder_files_process_pg)
@@ -1330,6 +1333,36 @@ class Init_APP():
             Mbox_File_Error.exec()
     
     def folder_files_process_ng(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el daily report.")
+            Mbox_In_Process.exec()
+            
+            self.Base = gui.daily_payjoy.generate_report(self.folder_path_IVR, self.folder_path)
+            
+            Mbox_In_Process = QMessageBox() 
+            Mbox_In_Process.setWindowTitle("")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Procesamiento del daily report ejecutado exitosamente.")
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a procesar.")
+            Mbox_File_Error.exec()
+    
+    def folder_report_daily_payjoy(self):
 
         type_process = "folder"
         
