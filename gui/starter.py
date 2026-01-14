@@ -259,6 +259,7 @@ class Init_APP():
         self.process_data.pushButton_6.clicked.connect(self.copy_folders_root)
         self.process_data.pushButton_8.clicked.connect(self.copy_code_documentation)
         self.process_data.pushButton_23.clicked.connect(self.copy_batch_folder_campaign_claro)
+        self.process_data.pushButton_32.clicked.connect(self.copy_folder_report_payjoy)
         self.process_data.pushButton_14.clicked.connect(self.copy_schema_campaings)
         self.process_data.pushButton_7.clicked.connect(self.copy_schema_masiv)
 
@@ -985,6 +986,18 @@ class Init_APP():
         output_directory = self.folder_path
 
         self.function_copy_folders(output_directory, "---- BATCH CLARO PARA CRUZAR ----")
+
+        Mbox_In_Process = QMessageBox()
+        Mbox_In_Process.setWindowTitle("")
+        Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+        Mbox_In_Process.setText("Carpetas para cruce exportadas en el directorio de Descargas.")
+        Mbox_In_Process.exec()
+    
+    def copy_folder_report_payjoy(self):
+
+        output_directory = self.folder_path
+
+        self.function_copy_folders(output_directory, "Daily Report Payjoy")
 
         Mbox_In_Process = QMessageBox()
         Mbox_In_Process.setWindowTitle("")

@@ -290,6 +290,12 @@ class Charge_DB(QtWidgets.QMainWindow):
                 .dt.strftime("%Y-%m-%d")
                 .alias("Fecha Digitacion y Activacion")
         )
+
+        Data_Root = Data_Root.with_columns(
+            col("Direccion Completa")
+            .str.replace_all(r"[^a-zA-Z0-9#\-_ ]", "", literal=False)
+            .alias("Direccion Completa")
+        )
         
         # --- Remove "|" from all columns ---
         # FIX: Replaced pl.all().map(...) with the efficient Polars selector pl.col(pl.Utf8)
