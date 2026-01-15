@@ -234,23 +234,28 @@ def save_excel_final(kpi_df, management_df, output_path):
     try:
         filename = f"{FOLDER_CONFIG['excel_prefix']}_DASHBOARD_{datetime.now().strftime('%Y-%m-%d_%H%M')}.xlsx"
         full_path = output_path.parent / filename
+        
         with pd.ExcelWriter(full_path, engine='xlsxwriter') as writer:
             workbook = writer.book
+            
+            # --- FORMATOS ---
             header_fmt = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#00B050', 'border': 1, 'align': 'center'})
             cell_fmt = workbook.add_format({'border': 1})
-            pct_fmt = workbook.add_format({'num_format': '0%', 'border': 1})
+            pct_fmt = workbook.add_format({'num_format': '0.00%', 'border': 1}) 
             dec_fmt = workbook.add_format({'num_format': '0.0', 'border': 1})
-            # Añadir formato de tiempo HH:MM:SS
-            time_fmt = workbook.add_format({'num_format': '[h]:mm:ss', 'border': 1})  # ← NUEVO FORMATO
+            time_fmt = workbook.add_format({'num_format': 'hh:mm:ss', 'border': 1})
 
             ws = workbook.add_worksheet('KPI_Dashboard')
             ws.freeze_panes(1, 0)
+            
             headers = ["DCA", "Bucket", "Indicator", "Description", "Data Type", "Value"]
-            for c, t in enumerate(headers): ws.write(0, c, t, header_fmt)
+            for c, t in enumerate(headers): 
+                ws.write(0, c, t, header_fmt)
 
             indicators = [
-                ("Assigned Portfolio", "Total assigned", "Integer"), ("Reachable Portfolio", "Reachable", "Integer"), ("Contacted Portfolio", "Contacted", "Integer"),
-                ("Active Agents", "Active Agents", "Integer"), ("Total Call Attempts", "Total Attempts", "Integer"), ("Total Answered Calls", "Answered", "Integer"),
+                ("Assigned Portfolio", "Total assigned", "Integer"), ("Reachable Portfolio", "Reachable", "Integer"), 
+                ("Contacted Portfolio", "Contacted", "Integer"), ("Active Agents", "Active Agents", "Integer"), 
+                ("Total Call Attempts", "Total Attempts", "Integer"), ("Total Answered Calls", "Answered", "Integer"),
                 ("Don’t Know on the Phone", "Wrong Num", "Integer"), ("Total Answered Calls (Excl. Short Calls)", "Calls > 15s", "Integer"),
                 ("Unique Customers Reached", "Unique Reaches", "Integer"), ("Unique Customers Reached (Excl. Short Calls)", "Unique > 15s", "Integer"),
                 ("Total RPCs (Right Party Contacts)", "Total RPCs", "Integer"), ("Unique RPCs", "Unique RPCs", "Integer"),
@@ -261,45 +266,46 @@ def save_excel_final(kpi_df, management_df, output_path):
                 ("% Unique RPCs / Unique Reaches", "Ratio", "Percentage"), ("% PTP / Total RPCs", "Ratio", "Percentage"),
                 ("% PTP / Reachable Portfolio", "Ratio", "Percentage"), ("Total Answered Calls per Active Agent", "Average", "Decimal"),
                 ("Total RPCs per Active Agent", "Average", "Decimal"), ("Promises to Pay per Active Agent", "Average", "Decimal"),
-                ("Total AHT", "Seconds", "Time"),  # ← Cambiado de "Decimal" a "Time"
-                ("AHT (Excluding Short Calls)", "Seconds", "Time"),  # ← Cambiado de "Decimal" a "Time"
+                ("Total AHT", "Seconds", "Time"), ("AHT (Excluding Short Calls)", "Seconds", "Time"),
                 ("Number of SMS sent", "Total", "Integer"), ("Number of WA sent", "Total", "Integer"), ("Number of e-mails sent", "Total", "Integer")
             ]
 
             curr = 1
             for _, row in kpi_df.to_pandas().iterrows():
                 for ind, desc, dtype in indicators:
-                    ws.write(curr, 0, "DCA-001", cell_fmt); ws.write(curr, 1, row['bucket'], cell_fmt)
-                    ws.write(curr, 2, ind, cell_fmt); ws.write(curr, 3, desc, cell_fmt); ws.write(curr, 4, dtype, cell_fmt)
+                    ws.write(curr, 0, "DCA-001", cell_fmt)
+                    ws.write(curr, 1, row['bucket'], cell_fmt)
+                    ws.write(curr, 2, ind, cell_fmt)
+                    ws.write(curr, 3, desc, cell_fmt)
+                    ws.write(curr, 4, dtype, cell_fmt)
+                    
                     val = row[ind]
                     
-                    # Aplicar formato según el tipo de dato
                     if dtype == "Percentage":
                         ws.write(curr, 5, val, pct_fmt)
                     elif dtype == "Decimal":
                         ws.write(curr, 5, val, dec_fmt)
                     elif dtype == "Time":
-                        # Convertir segundos a formato de tiempo de Excel (fracción de día)
-                        # Excel: 1 día = 24 horas = 86400 segundos
-                        excel_time = float(val) / 86400.0 if pd.notnull(val) else 0
+                        excel_time = float(val) / 86400.0 if (pd.notnull(val) and val != 0) else 0
                         ws.write(curr, 5, excel_time, time_fmt)
                     else:
                         ws.write(curr, 5, val, cell_fmt)
                     curr += 1
-                curr += 1
-            ws.set_column('A:F', 20)
-            
-            # Ajustar ancho de columna F para tiempo
+                curr += 1 
+
+            ws.set_column('A:E', 20)
             ws.set_column('F:F', 15)
             
+
             management_df.to_pandas().to_excel(writer, sheet_name='Management_Raw', index=False)
             ws2 = writer.sheets['Management_Raw']
-            for c, v in enumerate(management_df.columns): ws2.write(0, c, v, header_fmt)
+            for c, v in enumerate(management_df.columns): 
+                ws2.write(0, c, v, header_fmt)
 
         print(f"✅ Success! File saved: {full_path}")
     except Exception as e:
         print(f"❌ Save Error: {e}")
-        
+
 def generate_report(in_folder, out_folder):
     start = datetime.now()
     path_in, path_out = Path(in_folder), Path(out_folder) / FOLDER_CONFIG["output_folder"]
