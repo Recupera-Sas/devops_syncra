@@ -62,9 +62,28 @@ MAPPINGS = {
 # ================================================
 
 def group_buckets(bucket_name):
-    if not bucket_name or str(bucket_name) == "0": return "DPD 0"
-    if "+" in str(bucket_name): return "DPD +121"
-    return str(bucket_name)
+    bucket_str = str(bucket_name).strip()
+    if not bucket_str or bucket_str == "0": 
+        return "DPD 0"
+    
+    if "+" in bucket_str: 
+        return "DPD +121"
+    
+    if "-" in bucket_str:
+        try:
+            # Extraer la primera parte antes del guión
+            first_part = bucket_str.split("-")[0]
+            # Extraer solo los números de esa parte
+            import re
+            numbers = re.findall(r'\d+', first_part)
+            if numbers:
+                first_val = int(numbers[0])
+                if first_val > 120:
+                    return "DPD +121"
+        except ValueError:
+            pass
+
+    return bucket_str
 
 def get_bucket_weight(bucket_name):
     weights = {
@@ -118,6 +137,10 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
     # Normalizar buckets
     assignments_df = assignments_df.with_columns(pl.col(COLUMN_CONFIG["assignments"]["bucket"]).map_elements(group_buckets, return_dtype=pl.String))
     clients_df = clients_df.with_columns(pl.col(COLUMN_CONFIG["clients"]["bucket"]).map_elements(group_buckets, return_dtype=pl.String))
+
+    management_df = management_df.with_columns(
+        pl.col("bucket_dias_mora").map_elements(group_buckets, return_dtype=pl.String)
+    )
 
     # --- CORRECCIÓN REACHABLE PORTFOLIO (INNER JOIN) ---
     # Cruzamos asignación con clientes para obtener solo los que coinciden
@@ -217,6 +240,8 @@ def save_excel_final(kpi_df, management_df, output_path):
             cell_fmt = workbook.add_format({'border': 1})
             pct_fmt = workbook.add_format({'num_format': '0%', 'border': 1})
             dec_fmt = workbook.add_format({'num_format': '0.0', 'border': 1})
+            # Añadir formato de tiempo HH:MM:SS
+            time_fmt = workbook.add_format({'num_format': '[h]:mm:ss', 'border': 1})  # ← NUEVO FORMATO
 
             ws = workbook.add_worksheet('KPI_Dashboard')
             ws.freeze_panes(1, 0)
@@ -236,7 +261,8 @@ def save_excel_final(kpi_df, management_df, output_path):
                 ("% Unique RPCs / Unique Reaches", "Ratio", "Percentage"), ("% PTP / Total RPCs", "Ratio", "Percentage"),
                 ("% PTP / Reachable Portfolio", "Ratio", "Percentage"), ("Total Answered Calls per Active Agent", "Average", "Decimal"),
                 ("Total RPCs per Active Agent", "Average", "Decimal"), ("Promises to Pay per Active Agent", "Average", "Decimal"),
-                ("Total AHT", "Seconds", "Decimal"), ("AHT (Excluding Short Calls)", "Seconds", "Decimal"),
+                ("Total AHT", "Seconds", "Time"),  # ← Cambiado de "Decimal" a "Time"
+                ("AHT (Excluding Short Calls)", "Seconds", "Time"),  # ← Cambiado de "Decimal" a "Time"
                 ("Number of SMS sent", "Total", "Integer"), ("Number of WA sent", "Total", "Integer"), ("Number of e-mails sent", "Total", "Integer")
             ]
 
@@ -246,12 +272,26 @@ def save_excel_final(kpi_df, management_df, output_path):
                     ws.write(curr, 0, "DCA-001", cell_fmt); ws.write(curr, 1, row['bucket'], cell_fmt)
                     ws.write(curr, 2, ind, cell_fmt); ws.write(curr, 3, desc, cell_fmt); ws.write(curr, 4, dtype, cell_fmt)
                     val = row[ind]
-                    if dtype == "Percentage": ws.write(curr, 5, val, pct_fmt)
-                    elif dtype == "Decimal": ws.write(curr, 5, val, dec_fmt)
-                    else: ws.write(curr, 5, val, cell_fmt)
+                    
+                    # Aplicar formato según el tipo de dato
+                    if dtype == "Percentage":
+                        ws.write(curr, 5, val, pct_fmt)
+                    elif dtype == "Decimal":
+                        ws.write(curr, 5, val, dec_fmt)
+                    elif dtype == "Time":
+                        # Convertir segundos a formato de tiempo de Excel (fracción de día)
+                        # Excel: 1 día = 24 horas = 86400 segundos
+                        excel_time = float(val) / 86400.0 if pd.notnull(val) else 0
+                        ws.write(curr, 5, excel_time, time_fmt)
+                    else:
+                        ws.write(curr, 5, val, cell_fmt)
                     curr += 1
                 curr += 1
             ws.set_column('A:F', 20)
+            
+            # Ajustar ancho de columna F para tiempo
+            ws.set_column('F:F', 15)
+            
             management_df.to_pandas().to_excel(writer, sheet_name='Management_Raw', index=False)
             ws2 = writer.sheets['Management_Raw']
             for c, v in enumerate(management_df.columns): ws2.write(0, c, v, header_fmt)
@@ -259,7 +299,7 @@ def save_excel_final(kpi_df, management_df, output_path):
         print(f"✅ Success! File saved: {full_path}")
     except Exception as e:
         print(f"❌ Save Error: {e}")
-
+        
 def generate_report(in_folder, out_folder):
     start = datetime.now()
     path_in, path_out = Path(in_folder), Path(out_folder) / FOLDER_CONFIG["output_folder"]
