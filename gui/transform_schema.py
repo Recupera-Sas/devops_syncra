@@ -119,11 +119,15 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                 new_df['Segmento'] = (new_df['Segmento'].astype(str).str.upper()
                                       .replace(['NO APLICA', 'PERSONA'], 'PERSONAS', regex=False))
                 
+                # --- LIMPIEZA DE CUENTAS (Eliminar .0 y guiones) ---
                 for col in ['Cuenta_Next', 'Cuenta']:
                     if col in new_df.columns:
-                        new_df[col] = new_df[col].astype(str).str.replace('-', '', regex=False)
+                        # Convertimos a string, quitamos el .0 si existe al final, y quitamos guiones
+                        new_df[col] = (new_df[col].astype(str)
+                                       .apply(lambda x: x[:-2] if x.endswith('.0') else x)
+                                       .str.replace('-', '', regex=False))
 
-                # Limpieza final y guardado (Todo a String para evitar errores de Excel)
+                # Limpieza final (Todo a String para evitar errores de Excel)
                 for col in new_df.columns:
                     new_df[col] = new_df[col].astype(str).replace('nan', '', regex=False)
                 
