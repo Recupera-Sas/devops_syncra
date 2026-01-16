@@ -290,12 +290,18 @@ def save_excel_final(kpi_df, management_df, output_path):
                         ws.write(curr, 5, excel_time, time_fmt)
                     else:
                         ws.write(curr, 5, val, cell_fmt)
+                    
                     curr += 1
-                curr += 1 
+                    
+                    # --- NUEVO: Fila vacía después de AHT (Excluding Short Calls) ---
+                    if ind == "AHT (Excluding Short Calls)":
+                        curr += 1 
+
+                # --- NUEVO: 2 filas vacías al finalizar cada bucket ---
+                curr += 2 
 
             ws.set_column('A:E', 20)
             ws.set_column('F:F', 15)
-            
 
             management_df.to_pandas().to_excel(writer, sheet_name='Management_Raw', index=False)
             ws2 = writer.sheets['Management_Raw']
