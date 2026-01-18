@@ -4,7 +4,16 @@ from pyspark.sql import DataFrame
 from datetime import datetime
 from web.save_files import save_to_csv
  
-spark = get_spark_session()
+spark = None
+sqlContext = None
+def get_lazy_spark():
+    """Inicializa Spark solo si no existe una sesión previa."""
+    global spark, sqlContext
+    if spark is None:
+        from pyspark.sql import SQLContext # Import local para optimizar
+        spark = get_spark_session()
+        sqlContext = SQLContext(spark)
+    return spark, sqlContext
 
 def read_file_with_delimiter(file_path: str) -> DataFrame:
     """📖 Read file and detect delimiter automatically"""
@@ -29,6 +38,7 @@ def read_file_with_delimiter(file_path: str) -> DataFrame:
     return df, delimiter
 
 def merge_files(input_directory: str, output_directory: str):
+    get_lazy_spark()
     """🔄 Merge multiple CSV/TXT files into a single file"""
     
     print("=" * 70)

@@ -5,11 +5,20 @@ from datetime import datetime
 import os
 from web.save_files import save_to_csv
  
-spark = get_spark_session()
-
-sqlContext = SQLContext(spark)
+spark = None
+sqlContext = None
+def get_lazy_spark():
+    """Inicializa Spark solo si no existe una sesión previa."""
+    global spark, sqlContext
+    if spark is None:
+        from pyspark.sql import SQLContext # Import local para optimizar
+        spark = get_spark_session()
+        sqlContext = SQLContext(spark)
+    return spark, sqlContext
 
 def Union_Files_BOT(Path, Outpath, partitions):
+    get_lazy_spark()
+    
     required_columns = [
         "last_attempt", "attempts", "disposition", "phone", "name", 
         "origin", "debtdays", "document", "debtamount", "Edad de Mora", 

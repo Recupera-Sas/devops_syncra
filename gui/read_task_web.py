@@ -8,12 +8,20 @@ from pyspark.sql.window import Window
 from pyspark.sql.types import StringType
 from web.save_files import save_to_csv
  
-spark = get_spark_session()
-
-sqlContext = SQLContext(spark)
+spark = None
+sqlContext = None
+def get_lazy_spark():
+    """Inicializa Spark solo si no existe una sesión previa."""
+    global spark, sqlContext
+    if spark is None:
+        from pyspark.sql import SQLContext # Import local para optimizar
+        spark = get_spark_session()
+        sqlContext = SQLContext(spark)
+    return spark, sqlContext
 
 def function_complete_task_WEB(input_folder, output_folder, Partitions):
 
+    get_lazy_spark()
     files = []
 
     for root, _, file_names in os.walk(input_folder):

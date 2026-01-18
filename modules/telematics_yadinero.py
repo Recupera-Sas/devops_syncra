@@ -8,13 +8,19 @@ from pyspark.sql.functions import trim, format_number, expr, when, coalesce, dat
 from web.pyspark_session import get_spark_session
 from web.save_files import save_to_csv
 
-spark = get_spark_session()
-
-sqlContext = SQLContext(spark)
-
+spark = None
+sqlContext = None
+def get_lazy_spark():
+    """Inicializa Spark solo si no existe una sesión previa."""
+    global spark, sqlContext
+    if spark is None:
+        from pyspark.sql import SQLContext # Import local para optimizar
+        spark = get_spark_session()
+        sqlContext = SQLContext(spark)
+    return spark, sqlContext
 ### Process with all developed functions 📊
 def function_complete_telematics(path, output_directory, partitions, process_resource):
-    
+    get_lazy_spark()
     print(f"🚀 Processing Telematics YaDinero with resource: {process_resource}")
     
     Data_Frame = First_Changes_DataFrame(path)

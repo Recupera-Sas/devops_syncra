@@ -625,23 +625,40 @@ class Init_APP():
             Mbox_File_Error.exec()
             
     def select_file_CAM(self):
-        self.file_path_CAM = QFileDialog.getOpenFileName()
-        self.file_path_CAM = str(self.file_path_CAM[0])
-        if self.file_path_CAM:
+        file_filter = "Archivos de datos (*.csv *.parquet)"
+        
+        path, _ = QFileDialog.getOpenFileName(
+            None, 
+            "Seleccionar archivo", 
+            "", 
+            file_filter
+        )
+        
+        if path:
+            self.file_path_CAM = path
             
-            if not self.file_path_CAM.endswith('.csv'):
-                Mbox_File_Error = QMessageBox()
-                Mbox_File_Error.setWindowTitle("Error de procesamiento")
-                Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
-                Mbox_File_Error.setText("Debe seleccionar un archivo de valores con formato CSV.")
-                Mbox_File_Error.exec()
+            # 2. Validación de extensión mejorada
+            is_valid = path.lower().endswith(('.csv', '.parquet'))
             
-            else:
+            if not is_valid:
+                mbox = QMessageBox(self)
+                mbox.setWindowTitle("Error de formato")
+                mbox.setIcon(QMessageBox.Icon.Warning)
+                mbox.setText("Formato no compatible. Seleccione un archivo CSV o Parquet.")
+                mbox.exec()
+                return 
+
+            try:
                 self.row_count_CAM = count_csv_rows(self.file_path_CAM)
+                
                 if self.row_count_CAM is not None:
-                    self.row_count_CAM = "{:,}".format(self.row_count_CAM)
-                    self.process_data.label_Total_Registers_4.setText(f"{self.row_count_CAM}")
+                    formatted_count = "{:,}".format(int(self.row_count_CAM))
+                    self.process_data.label_Total_Registers_4.setText(f"{formatted_count}")
+                    
                     self.bd_process_start()
+                    
+            except Exception as e:
+                print(f"Error procesando el archivo: {e}")
 
     def select_file_IVR(self):
         self.file_path_IVR = QFileDialog.getOpenFileName()

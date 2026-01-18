@@ -12,23 +12,17 @@ git reset --hard origin/master
 echo ✅ Repository successfully updated.
 
 :: ============================================
-:: Try running with soporteit virtual environment first
+:: Run main.py using system Python
 :: ============================================
-
-set "SUPPORT_ENV=%USERPROFILE%\.virtualenvs\soporteit-hFdpDLPc\Scripts\python.exe"
 
 echo 🚀 Running main.py...
 
-if exist "%SUPPORT_ENV%" (
-    echo 🐍 Trying soporteit environment...
-    start "" /B "%SUPPORT_ENV%" main.py
-    if %errorlevel% neq 0 (
-        echo ⚠️ soporteit environment failed. Trying system Python...
-        start "" /B python main.py
-    )
-) else (
-    echo ⚠️ soporteit environment not found. Using system Python...
-    start "" /B python main.py
+:: Using start /B to run in the background without opening a new window
+start "" /B python main.py
+
+if %errorlevel% neq 0 (
+    echo ❌ Error: Failed to start main.py. Please check if Python is in your PATH.
+    pause
 )
 
 exit
