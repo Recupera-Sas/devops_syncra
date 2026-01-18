@@ -177,34 +177,42 @@ class Charge_DB(QtWidgets.QMainWindow):
             Mbox_In_Process.exec()
     
     def read_file(self, file_path):
-        
+        # Map of columns that MUST be strings (Utf8)
         schema_override_map = {
-            '4_': pl.Utf8,
-            '20_': pl.Utf8,
-            '27_': pl.Utf8,
-            '36_': pl.Utf8,    
-            '38_': pl.Utf8,    
-            '39_': pl.Utf8,    
-            '51_': pl.Utf8,    
-            '52_': pl.Utf8,    
-            '57_': pl.Utf8,
+            '4_': pl.Utf8, '20_': pl.Utf8, '27_': pl.Utf8,
+            '36_': pl.Utf8, '38_': pl.Utf8, '39_': pl.Utf8,
+            '51_': pl.Utf8, '52_': pl.Utf8, '57_': pl.Utf8,
         }
         
-        # --- Data Ingestion (Read as Utf8 for Cleaning) ---
-        # Equivalent to spark.read.csv(path, header= True, sep=";")
-        Data_Root: pl.DataFrame = pl.read_csv(
-            file_path, 
-            has_header=True, 
-            separator=";", 
-            infer_schema_length=100000, 
-            encoding='latin1', # Fixes UTF-8 errors
-            schema_overrides=schema_override_map # Forces problematic columns to string
-        ) 
+        if file_path.endswith('.parquet'):
+            # 1. Read Parquet (Type inference is automatic)
+            Data_Root = pl.read_parquet(file_path)
+            
+            # 2. FORCE CAST: Parquet often reads IDs/Codes as numbers (f64).
+            # We must convert them to String to match your business logic.
+            cols_to_cast = [col for col in schema_override_map.keys() if col in Data_Root.columns]
+            if cols_to_cast:
+                Data_Root = Data_Root.with_columns([
+                    pl.col(c).cast(pl.Utf8) for c in cols_to_cast
+                ])
+        else:
+            # 3. Read CSV (Uses your original configuration)
+            Data_Root = pl.read_csv(
+                file_path, 
+                has_header=True, 
+                separator=";", 
+                infer_schema_length=100000, 
+                encoding='latin1', 
+                schema_overrides=schema_override_map
+            )
         
+        # Values for filtering
         values = ["RR", "ASCARD", "BSCS", "SGA"]
         
+        # 4. Filter safely: Cast column '3_' to Utf8 just in case it's numeric in Parquet
         Data_Root = Data_Root.filter(
-            col('3_').is_not_null() & col('3_').is_in(values)
+            pl.col('3_').cast(pl.Utf8).is_not_null() & 
+            pl.col('3_').cast(pl.Utf8).is_in(values)
         )
                 
         return Data_Root
@@ -1178,14 +1186,19 @@ class Charge_DB(QtWidgets.QMainWindow):
     def convert_csv_to_parquet(self):
         """
         Minimalist CSV to Parquet converter with encoding detection.
-        Converts a single CSV file to Parquet in the same location.
+        Skips processing if the input file is already a Parquet file.
         """
         file = self.file_path
         root = self.folder_path
-        
         separator = ";"
         
-        # If no output path is provided, use the same directory as input
+        # --- Check if file is already Parquet ---
+        if str(file).lower().endswith('.parquet'):
+            print(f"⏩ Skipping: {file} is already a Parquet file.")
+            pass 
+            return # Exit the function
+
+        # --- Continue with CSV conversion if it's not a Parquet file ---
         if root is None:
             root = Path(file).parent
 
@@ -1202,12 +1215,13 @@ class Charge_DB(QtWidgets.QMainWindow):
         print(f"🔄 Converting: {file} -> {output_file}")
         
         try:
-            # Try different encodings
+            # Try different encodings for CSV
             encodings = ['utf-8', 'latin1', 'iso-8859-1', 'windows-1252']
             df = None
             
             for encoding in encodings:
                 try:
+                    # We only need read_csv here because parquet was already skipped
                     df = pl.read_csv(
                         file, 
                         separator=separator,
