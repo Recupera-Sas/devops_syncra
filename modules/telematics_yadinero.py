@@ -160,7 +160,7 @@ def Phone_Data(Data_):
 
     columns_to_stack_celular = [f"celular{i}" for i in range(1, 11)]
     columns_to_stack_fijo = [f"fijo{i}" for i in range(1, 5)]
-    columns_to_stack_min = ["numeromarcado", "celular", "segundo_celular", "celular_1"]
+    columns_to_stack_min = ["segundo_celular", "celular_1"]
     all_columns_to_stack = columns_to_stack_min #+ columns_to_stack_celular + columns_to_stack_fijo
     columns_to_drop_contact = all_columns_to_stack
     Stacked_Data_Frame = Data_.select("*", *all_columns_to_stack)
