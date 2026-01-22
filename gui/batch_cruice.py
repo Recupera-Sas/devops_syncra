@@ -11,7 +11,7 @@ def process_data(directory, output_directory, selected_columns, return_matches, 
     
     # Read the original and cross-reference data
     original_path = os.path.join(directory, "Batch", "*.csv")
-    cross_path = os.path.join(directory, "Demographics", "*.csv")
+    cross_path = os.path.join(directory, "Demográficos", "*.csv")
     
     print(f"📂 Reading original data from: {original_path}")
     print(f"📂 Reading cross-reference data from: {cross_path}")

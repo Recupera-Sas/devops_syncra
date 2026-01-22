@@ -1467,7 +1467,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se cruza la informacion.")
             Mbox_In_Process.exec()
             
-            self.Base = gui.batch_cruice.cruice_batch_campaign_claro(self.folder_path_IVR, self.folder_path, self.partitions_FOLDER)
+            self.Base = gui.batch_cruice.cross_batch_campaign_claro(self.folder_path_IVR, self.folder_path, self.partitions_FOLDER)
             
             Mbox_In_Process = QMessageBox() 
             Mbox_In_Process.setWindowTitle("")
