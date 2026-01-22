@@ -1054,9 +1054,7 @@ class Charge_DB(QtWidgets.QMainWindow):
 
         # 2. Add new columns with constant values (Equivalent to withColumn/lit/date_format)
         Data_Root = Data_Root.with_columns([
-            # Calculate current date and format as "dd/MM/yyyy"
-            # Polars: use current date (date()) and format it as a string
-            pl.lit(date.today()).dt.strftime("%d/%m/%Y").alias("Fecha_Ingreso"),
+            pl.col("62_").alias("Fecha_Ingreso"),
             
             # Add columns with empty string literal
             lit("").alias("Fecha_Salida"),
