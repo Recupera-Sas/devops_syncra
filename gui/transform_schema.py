@@ -6,14 +6,12 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
     """
     Transforma archivos CSV a Excel para el Dashboard filtrando por 'MENSAJERIA'.
     """
-    # Configuración de rutas y carpetas
     timestamp_folder = datetime.now().strftime('%Y-%m-%d')
     output_folder = os.path.join(output_folder, f"Transformación {timestamp_folder} DASHBOARD")
     
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    # --- Mapeos y Configuraciones ---
     source_to_target_mapping = {
         "IDENTIFICACION": "Identificacion",
         "CUENTA": "Cuenta_Next",
@@ -65,7 +63,6 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
 
     reverse_mapping = {v: k for k, v in source_to_target_mapping.items()}
 
-    # --- Procesamiento de Archivos ---
     for filename in os.listdir(input_folder):
         if filename.endswith(".csv"):
             file_path = os.path.join(input_folder, filename)
@@ -77,7 +74,6 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                     print(f"⚠️ Saltando {filename}: Falta columna HERRAMIENTA_ENVIO")
                     continue
                 
-                # Filtrado
                 mask = df['HERRAMIENTA_ENVIO'].astype(str).str.contains('MENSAJERIA', case=False, na=False)
                 if not mask.any():
                     print(f"⏭️ Saltando {filename}: No contiene filas 'MENSAJERIA'")
@@ -86,7 +82,6 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                 df = df[mask].copy()
                 new_df = pd.DataFrame()
                 
-                # Construcción de columnas
                 for target_col in final_column_order:
                     if target_col in ['Fecha_Envio', 'Hora_Real', 'Hora_Envio']:
                         new_df['Fecha_Envio'] = df['FECHA_EJECUCION']
@@ -110,8 +105,30 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                         source_col = reverse_mapping.get(target_col)
                         new_df[target_col] = df[source_col] if source_col in df.columns else None
 
-                # Transformaciones de datos
                 new_df['CRM'] = new_df['CRM'].map(crm_translation_map).fillna(new_df['CRM']).astype(str)
+                
+                if 'Cuenta' in new_df.columns and 'CRM' in new_df.columns:
+                    def format_cuenta_value(valor, crm_value):
+                        if pd.isna(valor) or pd.isna(crm_value):
+                            return valor
+                        
+                        if str(crm_value).strip() != 'BSCS':
+                            return str(valor)
+                        
+                        valor_str = str(valor).strip()
+                        if '.' in valor_str:
+                            return valor_str
+                        
+                        digits_only = ''.join(filter(str.isdigit, valor_str))
+                        if len(digits_only) == 9:
+                            return f"{digits_only[0]}.{digits_only[1:]}"
+                        
+                        return valor_str
+                    
+                    new_df['Cuenta'] = new_df.apply(
+                        lambda row: format_cuenta_value(row['Cuenta'], row['CRM']), 
+                        axis=1
+                    )
                 
                 for col in ['Saldo_Asignado', 'DEUDA_REAL']:
                     new_df[col] = new_df[col].astype(str).str.replace('.', ',', regex=False)
@@ -119,15 +136,12 @@ def transform_csv_to_excel_dashboard(input_folder, output_folder):
                 new_df['Segmento'] = (new_df['Segmento'].astype(str).str.upper()
                                       .replace(['NO APLICA', 'PERSONA'], 'PERSONAS', regex=False))
                 
-                # --- LIMPIEZA DE CUENTAS (Eliminar .0 y guiones) ---
                 for col in ['Cuenta_Next', 'Cuenta']:
                     if col in new_df.columns:
-                        # Convertimos a string, quitamos el .0 si existe al final, y quitamos guiones
                         new_df[col] = (new_df[col].astype(str)
                                        .apply(lambda x: x[:-2] if x.endswith('.0') else x)
                                        .str.replace('-', '', regex=False))
 
-                # Limpieza final (Todo a String para evitar errores de Excel)
                 for col in new_df.columns:
                     new_df[col] = new_df[col].astype(str).replace('nan', '', regex=False)
                 
