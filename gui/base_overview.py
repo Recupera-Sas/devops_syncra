@@ -509,14 +509,13 @@ class Charge_DB(QtWidgets.QMainWindow):
         
         # --- Document Type Logic (Tipo_Documento) ---
         Data_Root = Data_Root.with_columns(
-            # 1. Clean '1_' (Equivalent to regexp_replace("1_", r'[^a-zA-Z]', ''))
             col("1_").str.replace_all(r'[^a-zA-Z]', '', literal=False).alias("Tipo_Documento")
         ).with_columns(
-            # 2. Conditional mapping (using chained when/then/otherwise)
             pl.when(col("Tipo_Documento") == lit("CC")).then(lit("Cedula de Ciudadania"))
             .when(col("Tipo_Documento") == lit("PS")).then(lit("Pasaporte"))
             .when(col("Tipo_Documento") == lit("PP")).then(lit("Pasaporte"))
-            .when(col("Tipo_Documento") == lit("PP")).then(lit("Permiso Temporal")) # Duplicated original logic is preserved
+            .when(col("Tipo_Documento") == lit("PTP")).then(lit("Permiso Temporal"))
+            .when(col("Tipo_Documento") == lit("PPT")).then(lit("Permiso Temporal"))
             .when(col("Tipo_Documento") == lit("XPP")).then(lit("Permiso de Permanencia"))
             .when(col("Tipo_Documento") == lit("NT")).then(lit("Nit"))
             .when(col("Tipo_Documento") == lit("CD")).then(lit("Carnet Diplomatico"))
