@@ -854,12 +854,16 @@ class Charge_DB(QtWidgets.QMainWindow):
         })
 
         # --- Column "56_" (Segment) ---
-        Segment = ((col("42_") == lit("81")) | (col("42_") == lit("84")) | (col("42_") == lit("87")))
+        Segment = ((col("41_") == lit("81")) | (col("41_") == lit("84")) | (col("41_") == lit("87")))
+        Segment2 = ((col("41_") == lit("82")) | (col("41_") == lit("85")) | (col("41_") == lit("88")))
+        Segment3 = ((col("41_") == lit("83")) | (col("41_") == lit("86")) | (col("41_") == lit("89")))
+
         Data_Root = Data_Root.with_columns(
-            pl.when(Segment).then(lit("Personas"))
-            .otherwise(lit("Negocios"))
-            .alias("56_")
-        )
+            pl.when(Segment).then(pl.lit("Personas"))
+            .when(Segment2).then(pl.lit("Negocios"))
+            .when(Segment3).then(pl.lit("Empresas"))
+            .otherwise(pl.lit("Errado"))
+            .alias("56_"))
 
         # --- Column "57_" (Debt Banding) ---
         # The original logic compares a string column ('9_') which contains numeric values (likely debts)
