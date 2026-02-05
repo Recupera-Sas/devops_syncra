@@ -2,6 +2,7 @@ import os
 import glob
 import shutil
 from pathlib import Path
+from cloud.conversion_csv_to_parquet import convert_csv_to_parquet
 import modules.report_exclusions
 from gui.dynamic_thread import DynamicThread
 import utils.active_lines
@@ -87,7 +88,7 @@ class Charge_DB(QtWidgets.QMainWindow):
 
         try:
             self.BD_Control_Next()
-            self.convert_csv_to_parquet()
+            self.convert_csv_to_parquet_bd()
             
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -113,7 +114,7 @@ class Charge_DB(QtWidgets.QMainWindow):
 
         try:
             self.DB_Create()
-            self.convert_csv_to_parquet()
+            self.convert_csv_to_parquet_bd()
             
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -161,7 +162,7 @@ class Charge_DB(QtWidgets.QMainWindow):
         try:
             
             utils.active_lines.Function_Complete(path, output_directory, partitions)
-            self.convert_csv_to_parquet()
+            self.convert_csv_to_parquet_bd()
             
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -973,9 +974,9 @@ class Charge_DB(QtWidgets.QMainWindow):
         output_path = f'{Directory_to_Save}{Type_File}'
         Name_File = f'BD {Name_File}'
         
-        # File saving dispatcher (using the helper functions defined above)
         if extension == "csv":
             save_to_csv(Data_Frame, output_path, Name_File, Partitions, delimiter)
+            convert_csv_to_parquet(output_path, Directory_to_Save)
         else:
             save_to_0csv(Data_Frame, output_path, Name_File, Partitions, delimiter)
 
@@ -1193,7 +1194,7 @@ class Charge_DB(QtWidgets.QMainWindow):
             print(f"Error during partitioning: {e}")
             return None
 
-    def convert_csv_to_parquet(self):
+    def convert_csv_to_parquet_bd(self):
         """
         Minimalist CSV to Parquet converter with encoding detection.
         Skips processing if the input file is already a Parquet file.
