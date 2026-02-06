@@ -3464,11 +3464,11 @@ QPushButton:pressed {
             <x>0</x>
             <y>0</y>
             <width>222</width>
-            <height>372</height>
+            <height>402</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
-           <item row="5" column="0">
+           <item row="6" column="0">
             <widget class="QPushButton" name="pushButton_11">
              <property name="font">
               <font>
@@ -3496,7 +3496,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="9" column="0">
+           <item row="10" column="0">
             <widget class="QPushButton" name="pushButton_22">
              <property name="font">
               <font>
@@ -3524,7 +3524,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="7" column="0">
+           <item row="8" column="0">
             <widget class="QPushButton" name="pushButton_27">
              <property name="font">
               <font>
@@ -3552,7 +3552,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
+           <item row="2" column="0">
             <widget class="QPushButton" name="pushButton_25">
              <property name="font">
               <font>
@@ -3580,63 +3580,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="3" column="0">
-            <widget class="QPushButton" name="pushButton_12">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Consolidar Resultados IPCom</string>
-             </property>
-            </widget>
-           </item>
-           <item row="6" column="0">
-            <widget class="QPushButton" name="pushButton_21">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Convertir XLSX a CSV</string>
-             </property>
-            </widget>
-           </item>
-           <item row="8" column="0">
+           <item row="9" column="0">
             <widget class="QPushButton" name="pushButton_54">
              <property name="font">
               <font>
@@ -3664,8 +3608,8 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="0" column="0">
-            <widget class="QPushButton" name="pushButton_24">
+           <item row="4" column="0">
+            <widget class="QPushButton" name="pushButton_12">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3688,11 +3632,39 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Exportar Data de Telemática</string>
+              <string>Consolidar Resultados IPCom</string>
              </property>
             </widget>
            </item>
-           <item row="11" column="0">
+           <item row="7" column="0">
+            <widget class="QPushButton" name="pushButton_21">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Convertir XLSX a CSV</string>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="0">
             <widget class="QPushButton" name="pushButton_30">
              <property name="font">
               <font>
@@ -3720,7 +3692,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="10" column="0">
+           <item row="11" column="0">
             <widget class="QPushButton" name="pushButton_29">
              <property name="font">
               <font>
@@ -3748,7 +3720,63 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
+           <item row="1" column="0">
+            <widget class="QPushButton" name="pushButton_24">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Exportar Data de Telemática</string>
+             </property>
+            </widget>
+           </item>
+           <item row="13" column="0">
+            <widget class="QPushButton" name="pushButton_31">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Reporte Daily Payjoy</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
             <widget class="QPushButton" name="pushButton_26">
              <property name="font">
               <font>
@@ -3776,8 +3804,8 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="12" column="0">
-            <widget class="QPushButton" name="pushButton_31">
+           <item row="0" column="0">
+            <widget class="QPushButton" name="pushButton_33">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3800,7 +3828,7 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Reporte Daily Payjoy</string>
+              <string>Procesar Blasters</string>
              </property>
             </widget>
            </item>
@@ -6037,7 +6065,7 @@ QPushButton:pressed {
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>193</width>
+            <width>222</width>
             <height>192</height>
            </rect>
           </property>

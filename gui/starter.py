@@ -2,6 +2,7 @@ import cpuinfo
 import bigdata.demos_ai
 import bigdata.touch_ai
 import bigdata.union_datalakes_claro
+from gui import efecty_blaster
 import gui.batch_cruice
 import gui.union_like_powershell
 import gui.adition_demographic
@@ -260,6 +261,7 @@ class Init_APP():
         self.process_data.pushButton_8.clicked.connect(self.copy_code_documentation)
         self.process_data.pushButton_23.clicked.connect(self.copy_batch_folder_campaign_claro)
         self.process_data.pushButton_32.clicked.connect(self.copy_folder_report_payjoy)
+        self.process_data.pushButton_33.clicked.connect(self.exec_claro_blaster)
         self.process_data.pushButton_14.clicked.connect(self.copy_schema_campaings)
         self.process_data.pushButton_7.clicked.connect(self.copy_schema_masiv)
 
@@ -2110,6 +2112,37 @@ class Init_APP():
             Mbox_In_Process.setWindowTitle("")
             Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
             Mbox_In_Process.setText("Dataset generado exitosamente.")
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
+            Mbox_File_Error.exec()
+
+    def exec_claro_blaster(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el blaster.")
+            Mbox_In_Process.exec()
+            
+            folder_path_bg = f"{self.folder_path}----- Bases BLASTER ----"
+            efecty_blaster.process_ivr_data(self.folder_path_IVR, folder_path_bg)
+
+            Mbox_In_Process = QMessageBox() 
+            Mbox_In_Process.setWindowTitle("")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Archivos generados exitosamente.")
             Mbox_In_Process.exec()
         
         else:
