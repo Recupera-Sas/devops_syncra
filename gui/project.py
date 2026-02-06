@@ -86,7 +86,7 @@ class Process_Data(QtWidgets.QMainWindow):
             sheets_str = self.process_data.label_Total_Registers_2.text()
             sheets = int(sheets_str.split()[0])
             
-            if sheets < 3:
+            if sheets < 4:
                 modules.exclusions.process_xlsx_file(file, root)
                 print("Normal Exclusions")
             elif sheets > 2:
