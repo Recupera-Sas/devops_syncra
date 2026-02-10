@@ -198,7 +198,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_efectivo.write_csv(output_efectivo, separator=';')
     
     df_mensajes = df_final.filter(
-        pl.col("canal").str.to_lowercase().str.contains("mensajeria")
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
     )
     output_mensajes = os.path.join(output_folder, f"reporte_mensajes_{timestamp}.csv")
     df_mensajes.write_csv(output_mensajes, separator=';')
