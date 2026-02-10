@@ -196,6 +196,15 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     )
     output_efectivo = os.path.join(output_folder, f"reporte_efectivo_blasters_{timestamp}.csv")
     df_efectivo.write_csv(output_efectivo, separator=';')
+
+    df_no_efectivo = df_final.filter(
+        ~pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio")
+    )
+    df_no_efectivo = df_no_efectivo.filter(
+        ~pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
+    )
+    output_no_efectivo = os.path.join(output_folder, f"reporte_no_efectivo_blasters_{timestamp}.csv")
+    df_no_efectivo.write_csv(output_no_efectivo, separator=';')
     
     df_mensajes = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
@@ -205,10 +214,12 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     print(f"✅ Procesado: {df_final.height:,} registros totales")
     print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
+    print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
     print(f"   🔹 Mensajería: {df_mensajes.height:,}")
     print(f"💾 Archivos guardados:")
     print(f"   📄 Completo: {output_completo}")
     print(f"   📄 Blasters: {output_efectivo}")
+    print(f"   📄 No Efectivo: {output_no_efectivo}")
     print(f"   📄 Mensajes: {output_mensajes}")
     
     return f"✅ Archivos guardados en: {output_folder}"
