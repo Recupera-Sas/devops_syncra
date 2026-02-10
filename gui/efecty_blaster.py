@@ -12,7 +12,7 @@ COLUMNS_RETIRADAS = {
     'NUMERO MARCADO': 'NUMERO MARCADO',
     'ESTADO': 'ESTADO',
     'FECHA DE MARCACION': 'FECHA DE MARCACION',
-    'DURACIÓN': 'DURACIÓN',
+    'DURACION': 'DURACION',
     'CRM': 'CRM',
     'MARCA': 'MARCA',
     'IDENTI': 'IDENTI',
@@ -28,7 +28,7 @@ COLUMNS_EFECTIVA = {
     'NUMERO MARCADO': 'NUMERO MARCADO',
     'ESTADO': 'ESTADO',
     'FECHA DE MARCACION': 'FECHA DE MARCACION',
-    'DURACIÓN': 'DURACIÓN',
+    'DURACION': 'DURACION',
     'CRM': 'CRM',
     'MARCA': 'MARCA',
     'IDENTI': 'IDENTI',
@@ -117,6 +117,27 @@ COLUMNS_IVR_SAEM_DEPURADO = {
     'Identificacion': 'IDENTI'
 }
 
+def normalize_column_names(df):
+    column_mapping = {}
+    for col in df.columns:
+        normalized_col = col
+        if "FECHA DE MARCACI" in col.upper():
+            if "Ó" in col or "Ó" in col:
+                normalized_col = "FECHA DE MARCACION"
+            else:
+                normalized_col = "FECHA DE MARCACION"
+        elif "DURACI" in col.upper():
+            if "Ó" in col or "Ó" in col:
+                normalized_col = "DURACION"
+            else:
+                normalized_col = "DURACION"
+        column_mapping[col] = normalized_col
+    
+    if column_mapping:
+        df = df.rename(column_mapping)
+    
+    return df
+
 def translate_estado_blaster(value):
     translations = {
         'ANSWERED': 'CONTESTADA',
@@ -166,12 +187,11 @@ def parse_duration_to_seconds(duration_str):
         return 0
 
 def adjust_estado_for_duration(df):
-    if 'ESTADO' not in df.columns or 'DURACIÓN' not in df.columns:
+    if 'ESTADO' not in df.columns or 'DURACION' not in df.columns:
         return df
 
-
     df = df.with_columns(
-        pl.col('DURACIÓN')
+        pl.col('DURACION')
         .map_elements(parse_duration_to_seconds, return_dtype=pl.Int64)
         .alias('_duration_seconds')
     )
@@ -221,7 +241,9 @@ def get_estados_efectivos_blaster():
     return ['CONTESTADA']
 
 def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
+    df_blaster = normalize_column_names(df_blaster)
     df_blaster = df_blaster.rename({col: col.strip() for col in df_blaster.columns})
+    
     if 'IDENTIFICACION' in df_blaster.columns:
         df_blaster = df_blaster.rename({'IDENTIFICACION': 'identificacion'})
         df_blaster = df_blaster.with_columns(pl.col('identificacion').cast(pl.Utf8))
@@ -230,11 +252,14 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
     elif 'IDENTI' in df_blaster.columns:
         df_blaster = df_blaster.rename({'IDENTI': 'identificacion'})
         df_blaster = df_blaster.with_columns(pl.col('identificacion').cast(pl.Utf8))
+    
     if 'ESTADO' in df_blaster.columns:
         df_blaster = df_blaster.with_columns(
             pl.col('ESTADO').map_elements(translate_estado_blaster, return_dtype=pl.Utf8).alias('ESTADO')
         )
+    
     df_blaster = adjust_estado_for_duration(df_blaster)
+    
     cruzado = df_blaster.join(
         df_assignment,
         left_on='identificacion',
@@ -247,6 +272,7 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
         right_on='cuenta',
         how='anti'
     )
+    
     estados_efectivos = get_estados_efectivos_blaster()
     if 'ESTADO' in cruzado.columns:
         efectivo_vigente = cruzado.filter(pl.col('ESTADO').is_in(estados_efectivos))
@@ -254,8 +280,19 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
     else:
         efectivo_vigente = cruzado
         cruzado = cruzado.filter(~pl.col('ESTADO').is_in(estados_efectivos))
+    
     if no_cruzado.height > 0:
-        retiradas_columns = {k: v for k, v in COLUMNS_RETIRADAS.items() if k in no_cruzado.columns}
+        retiradas_columns = {}
+        for old_name, new_name in COLUMNS_RETIRADAS.items():
+            if old_name == 'FECHA DE MARCACION':
+                if 'FECHA DE MARCACION' in no_cruzado.columns:
+                    retiradas_columns['FECHA DE MARCACION'] = new_name
+            elif old_name == 'DURACION':
+                if 'DURACION' in no_cruzado.columns:
+                    retiradas_columns['DURACION'] = new_name
+            elif old_name in no_cruzado.columns:
+                retiradas_columns[old_name] = new_name
+        
         retiradas = no_cruzado.select([
             pl.col(old_name).alias(new_name) for old_name, new_name in retiradas_columns.items()
         ])
@@ -265,8 +302,19 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
             )
         retiradas_path = output_path / f'blaster_retiradas_{timestamp}.csv'
         retiradas.write_csv(retiradas_path, separator=';', quote_style='never')
+    
     if efectivo_vigente.height > 0:
-        efectiva_columns = {k: v for k, v in COLUMNS_EFECTIVA.items() if k in efectivo_vigente.columns}
+        efectiva_columns = {}
+        for old_name, new_name in COLUMNS_EFECTIVA.items():
+            if old_name == 'FECHA DE MARCACION':
+                if 'FECHA DE MARCACION' in efectivo_vigente.columns:
+                    efectiva_columns['FECHA DE MARCACION'] = new_name
+            elif old_name == 'DURACION':
+                if 'DURACION' in efectivo_vigente.columns:
+                    efectiva_columns['DURACION'] = new_name
+            elif old_name in efectivo_vigente.columns:
+                efectiva_columns[old_name] = new_name
+        
         base_efectiva = efectivo_vigente.select([
             pl.col(old_name).alias(new_name) for old_name, new_name in efectiva_columns.items()
         ])
@@ -276,6 +324,7 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
             )
         efectiva_path = output_path / f'blaster_efectivo_vigente_{timestamp}.csv'
         base_efectiva.write_csv(efectiva_path, separator=';', quote_style='never')
+    
     if cruzado.height > 0:
         selected_columns = []
         if 'identificacion' in cruzado.columns:
@@ -301,6 +350,7 @@ def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
 
 def process_ivr_saem_data(df_ivr, df_assignment, output_path, timestamp):
     df_ivr = normalize_ivr_saem_columns(df_ivr)
+    
     cruzado = df_ivr.join(
         df_assignment,
         left_on='identificacion',
@@ -313,6 +363,7 @@ def process_ivr_saem_data(df_ivr, df_assignment, output_path, timestamp):
         right_on='cuenta',
         how='anti'
     )
+    
     estados_efectivos = get_estados_efectivos_saem()
     if 'Mejor_Marcacion' in cruzado.columns and 'secounds' in cruzado.columns:
         efectivo_vigente = cruzado.filter(
@@ -333,11 +384,13 @@ def process_ivr_saem_data(df_ivr, df_assignment, output_path, timestamp):
     else:
         efectivo_vigente = cruzado
         cruzado = cruzado.filter(pl.col('identificacion').is_not_null())
+    
     if no_cruzado.height > 0:
         if 'Identificacion' not in no_cruzado.columns and 'identificacion' in no_cruzado.columns:
             no_cruzado = no_cruzado.with_columns(
                 pl.col('identificacion').alias('Identificacion')
             )
+        
         retiradas_columns = {k: v for k, v in COLUMNS_IVR_SAEM_RETIRADAS.items() if k in no_cruzado.columns}
         retiradas = no_cruzado.select([
             pl.col(old_name).alias(new_name) for old_name, new_name in retiradas_columns.items()
@@ -348,11 +401,13 @@ def process_ivr_saem_data(df_ivr, df_assignment, output_path, timestamp):
             )
         retiradas_path = output_path / f'ivr_saem_retiradas_{timestamp}.csv'
         retiradas.write_csv(retiradas_path, separator=';', quote_style='never')
+    
     if efectivo_vigente.height > 0:
         if 'Identificacion' not in efectivo_vigente.columns and 'identificacion' in efectivo_vigente.columns:
             efectivo_vigente = efectivo_vigente.with_columns(
                 pl.col('identificacion').alias('Identificacion')
             )
+        
         efectiva_columns = {k: v for k, v in COLUMNS_IVR_SAEM_EFECTIVA.items() if k in efectivo_vigente.columns}
         base_efectiva = efectivo_vigente.select([
             pl.col(old_name).alias(new_name) for old_name, new_name in efectiva_columns.items()
@@ -363,6 +418,7 @@ def process_ivr_saem_data(df_ivr, df_assignment, output_path, timestamp):
             )
         efectiva_path = output_path / f'ivr_saem_efectivo_vigente_{timestamp}.csv'
         base_efectiva.write_csv(efectiva_path, separator=';', quote_style='never')
+    
     if cruzado.height > 0:
         selected_columns = []
         if 'Celular' in cruzado.columns:
@@ -401,14 +457,18 @@ def process_ivr_data(input_folder: str, output_folder: str):
     output_path = Path(output_folder)
     if not input_path.exists():
         return
+    
     output_path.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    
     csv_files = list(input_path.glob("*.csv"))
     if not csv_files:
         return
+    
     df_blaster = None
     df_ivr_saem = None
     df_assignment = None
+    
     for csv_file in csv_files:
         try:
             if "reporte_clientes" in csv_file.name.lower():
@@ -429,6 +489,9 @@ def process_ivr_data(input_folder: str, output_folder: str):
                     df = pl.read_csv(str(csv_file), separator=';', ignore_errors=True)
                 except Exception as e:
                     continue
+                
+                df = normalize_column_names(df)
+                
                 if "LEAD ID" in df.columns:
                     if df_blaster is None:
                         df_blaster = df
@@ -441,8 +504,10 @@ def process_ivr_data(input_folder: str, output_folder: str):
                         df_ivr_saem = pl.concat([df_ivr_saem, df], how="diagonal")
         except Exception:
             continue
+    
     if df_assignment is None:
         return
+    
     df_assignment = df_assignment.rename({col: col.strip() for col in df_assignment.columns})
     if 'cuenta' in df_assignment.columns:
         df_assignment = df_assignment.with_columns(
@@ -451,7 +516,9 @@ def process_ivr_data(input_folder: str, output_folder: str):
             .str.replace_all("-", "")
             .alias('cuenta')
         )
+    
     if df_blaster is not None:
         process_blaster_data(df_blaster, df_assignment, output_path, timestamp)
+    
     if df_ivr_saem is not None:
         process_ivr_saem_data(df_ivr_saem, df_assignment, output_path, timestamp)
