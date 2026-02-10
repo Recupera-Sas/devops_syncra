@@ -238,7 +238,7 @@ def get_estados_efectivos_saem():
     return ['Satisfactorio', 'Colgo']
 
 def get_estados_efectivos_blaster():
-    return ['CONTESTADA']
+    return ['CONTESTADA', 'COLGO']
 
 def process_blaster_data(df_blaster, df_assignment, output_path, timestamp):
     df_blaster = normalize_column_names(df_blaster)
