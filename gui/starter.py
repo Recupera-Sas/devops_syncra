@@ -165,19 +165,26 @@ class Init_APP():
             processor_name = info['brand_raw']
             self.process_data.label_3.setText(f"{processor_name}")
 
-            try:
-                _, _, free_d = shutil.disk_usage("C:/")
-                free_gb_d = free_d // (1024**3)
-                self.process_data.lcdNumber_3.display(free_gb_d)
-            except FileNotFoundError:
-                self.process_data.lcdNumber_3.display(0)
-                
-            try:
-                _, _, free_d = shutil.disk_usage("D:/")
-                free_gb_d = free_d // (1024**3)
-                self.process_data.lcdNumber_2.display(free_gb_d)
-            except FileNotFoundError:
-                self.process_data.lcdNumber_2.display(0)
+            def get_disk_space_psutil(drive_path):
+                try:
+                    if drive_path.endswith('/') or drive_path.endswith('\\'):
+                        drive_path = drive_path.rstrip('/\\')
+                    
+                    for partition in psutil.disk_partitions():
+                        if partition.device.startswith(drive_path) or drive_path.startswith(partition.device):
+                            usage = psutil.disk_usage(partition.mountpoint)
+                            free_gb = usage.free // (1024**3)
+                            return free_gb
+                    return 0
+                except Exception as e:
+                    print(f"💥 Error accediendo a {drive_path}: {e}")
+                    return 0
+            
+            free_c = get_disk_space_psutil("C:")
+            self.process_data.lcdNumber_3.display(free_c)
+            
+            free_d = get_disk_space_psutil("D:")
+            self.process_data.lcdNumber_2.display(free_d)
     
             self.exec_process()
             
