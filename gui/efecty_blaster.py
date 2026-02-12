@@ -387,8 +387,3 @@ def process_ivr_data(input_folder: str, output_folder: str):
     print(f"\n{'='*60}")
     print(f"PROCESO COMPLETADO")
     print(f"{'='*60}")
-
-input_folder = r"C:\Users\c.desarrollo\Downloads\BLASTER 1"
-output_folder = r"C:\Users\c.desarrollo\Downloads"
-
-process_ivr_data(input_folder, output_folder)
