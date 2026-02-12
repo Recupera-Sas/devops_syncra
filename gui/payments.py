@@ -101,6 +101,9 @@ def clean_dataframe(df):
     if 'Número de Cliente' in df.columns:
         df['Número de Cliente'] = df['Número de Cliente'].apply(clean_numeric_cta)
         df = df.rename(columns={'Número de Cliente': 'obligacion'})
+    if 'NUMERO_CREDITO' in df.columns:
+        df['NUMERO_CREDITO'] = df['NUMERO_CREDITO'].apply(clean_numeric_cta)
+        df = df.rename(columns={'NUMERO_CREDITO': 'obligacion'})
         
     if 'Pago' in df.columns:
         df['Pago'] = df['Pago'].apply(clean_numeric_amount)
@@ -108,6 +111,9 @@ def clean_dataframe(df):
     if 'PAGO' in df.columns:
         df['PAGO'] = df['PAGO'].apply(clean_numeric_amount)
         df = df.rename(columns={'PAGO': 'valor'})
+    if 'MONTO_TRANSACCION' in df.columns:
+        df['MONTO_TRANSACCION'] = df['MONTO_TRANSACCION'].apply(clean_numeric_amount)
+        df = df.rename(columns={'MONTO_TRANSACCION': 'valor'})
     if 'MONTO' in df.columns:
         df['MONTO'] = df['MONTO'].apply(clean_numeric_amount)
         df = df.rename(columns={'MONTO': 'valor'})
