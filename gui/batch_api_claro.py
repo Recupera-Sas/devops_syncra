@@ -20,7 +20,7 @@ def process_batch_files(input_path, output_path):
                 df_temp = pl.read_csv(fpath, separator=';', infer_schema_length=0, ignore_errors=True)
                 cols = [c.strip() for c in df_temp.columns]
                 
-                if 'responsable_cargue' in cols and 'Liquidacion' in cols:
+                if 'Multiproducto' in cols and 'Liquidacion' in cols:
                     print(f"💎 Cruce detectado: {fname}")
                     mapping_df = df_temp.select([
                         pl.col('Documento').alias('Documento'),
