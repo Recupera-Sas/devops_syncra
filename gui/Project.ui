@@ -3462,7 +3462,7 @@ QPushButton:pressed {
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>-343</y>
+            <y>0</y>
             <width>222</width>
             <height>462</height>
            </rect>
@@ -4469,7 +4469,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string>Sharepoint Backup TI</string>
+         <string>Sharepoint Backups</string>
         </property>
         <property name="icon">
          <iconset>
@@ -6121,7 +6121,7 @@ QPushButton:pressed {
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>222</width>
+            <width>193</width>
             <height>192</height>
            </rect>
           </property>

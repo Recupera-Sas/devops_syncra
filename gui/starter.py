@@ -288,6 +288,7 @@ class Init_APP():
         
         self.process_data.commandLinkButton_31.clicked.connect(lambda: self.open_chrome_with_url('https://recuperasas10-my.sharepoint.com/:f:/g/personal/coordinador_operativo2_recuperasas_com/Erd9Zszk2gBMpOY-HSs_4EwBhYQGgJfmQCN8NTgOlPhF8A?e=oXfjnt'))
         self.process_data.commandLinkButton_32.clicked.connect(lambda: self.open_chrome_with_url('https://recuperasas10.sharepoint.com/sites/ao2023/Shared%20Documents/Forms/AllItems.aspx?viewid=3b190181%2D2dd9%2D4237%2D988e%2Dcb92220f7829&p=true&ga=1'))
+        self.process_data.commandLinkButton_32.clicked.connect(lambda: self.open_chrome_with_url('https://recuperasas10-my.sharepoint.com/personal/coordinador_desarrollo2_recuperasas_com/_layouts/15/onedrive.aspx?e=5%3A0ca47b9dd34c48e494f0a7edd910a7ac&sharingv2=true&fromShare=true&at=9&CID=0ee8a459%2D9c1f%2D4649%2D9240%2D769e4ffb4f6c&id=%2Fpersonal%2Fcoordinador%5Fdesarrollo2%5Frecuperasas%5Fcom%2FDocuments%2FBackups%20Recupera%20Lumina%20Systems&FolderCTID=0x012000B9E9DC00D74D0F479F67D79DD8014A90&view=0'))
 
         self.process_data.pushButton_Process_8.clicked.connect(self.schedule_shutdown)
 
