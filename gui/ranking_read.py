@@ -122,29 +122,42 @@ def process_ranking_files(input_folder, output_file):
                 else:
                     df["estado"] = df["concepto"]
 
-                # Create a new column "llave" based on "estado" and "tipo"
-                df["llave"] = (df["estado"].astype(str) + df["tipo"].astype(str)).str.upper()
+                # ===== NUEVA LÓGICA PARA ARCHIVO CON COLUMNA ESTADO =====
+                # Verificar si existe la columna 'estado' (original del archivo)
+                if 'estado' in df.columns:
+                    # Crear copia de la columna estado original para no perderla
+                    df['estado_original'] = df['estado']
+                    
+                    # Aplicar la lógica específica: CAIDO = GESTIONAR, lo demás = NO GESTIONAR
+                    df['estado'] = df['estado_original'].apply(
+                        lambda x: "GESTIONAR" if str(x).strip().upper() == "CAIDO" else "NO GESTIONAR"
+                    )
+                    print(f"   🔄 Aplicada lógica especial para columna ESTADO: CAIDO → GESTIONAR, otros → NO GESTIONAR")
+                else:
+                    # Si no existe la columna estado original, mantener la lógica existente
+                    # Create a new column "llave" based on "estado" and "tipo"
+                    df["llave"] = (df["estado"].astype(str) + df["tipo"].astype(str)).str.upper()
 
-                # Update "estado" based on "llave"
-                df["estado"] = df["llave"].apply(
-                    lambda x: "NO RECUPERADA" if x == "NOFIJA" else
-                              "RECUPERADA" if x == "SIFIJA" else
-                              "NO GESTIONAR" if x == "NOMOVIL" else
-                              "GESTIONAR" if x == "AJUSTEMOVIL" else
-                              "GESTIONAR" if x == "PENDIENTEMOVIL" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL NO RXMOVIL" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL NO_RXMOVIL" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL NO-RX" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL SI RXMOVIL" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL SI_RXMOVIL" else
-                              "NO GESTIONAR" if x == "PAGO TOTAL SI-RX" else
-                              "GESTIONAR" if x == "SIMOVIL" else
-                              "GESTION RECAUDO" if "GESTION RECAUDO" in x else
-                              "GESTION RECAUDO" if "GESTION_RECAUDO" in x else
-                              "GESTION RECAUDO" if "GESTIÓN_RECAUDO" in x else
-                              "GESTION RECAUDO" if "GESTIÓN RECAUDO" in x else
-                              x
-                )
+                    # Update "estado" based on "llave"
+                    df["estado"] = df["llave"].apply(
+                        lambda x: "NO RECUPERADA" if x == "NOFIJA" else
+                                  "RECUPERADA" if x == "SIFIJA" else
+                                  "NO GESTIONAR" if x == "NOMOVIL" else
+                                  "GESTIONAR" if x == "AJUSTEMOVIL" else
+                                  "GESTIONAR" if x == "PENDIENTEMOVIL" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL NO RXMOVIL" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL NO_RXMOVIL" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL NO-RX" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL SI RXMOVIL" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL SI_RXMOVIL" else
+                                  "NO GESTIONAR" if x == "PAGO TOTAL SI-RX" else
+                                  "GESTIONAR" if x == "SIMOVIL" else
+                                  "GESTION RECAUDO" if "GESTION RECAUDO" in x else
+                                  "GESTION RECAUDO" if "GESTION_RECAUDO" in x else
+                                  "GESTION RECAUDO" if "GESTIÓN_RECAUDO" in x else
+                                  "GESTION RECAUDO" if "GESTIÓN RECAUDO" in x else
+                                  x
+                    )
                 
                 df["archivo"] = file
                 
