@@ -4,32 +4,23 @@ from datetime import datetime
 import pandas as pd
 
 def process_ranking_files(input_folder, output_file):
-    """
-    Processes Excel files in a folder, filters and transforms data, and saves the result to a CSV file.
-
-    Args:
-        input_folder (str): Path to the folder containing the Excel files.
-        output_file (str): Path to save the resulting CSV file.
-    """
     print(f"🚀 Starting Ranking Files Processing...")
     print(f"📂 Input folder: {input_folder}")
     print(f"💾 Output file: {output_file}")
     
     all_data = []
     all_data_detail = []
-    unprocessed_files = []  # List to track files with 0 records
+    unprocessed_files = []
     processed_files_count = 0
     
-    # Define possible column names for dynamic handling
     cuenta_columns = ["raiz", "cuenta"]
-    estado_columns = ["gestion", "recuperada"]
+    estado_columns = ["gestion", "recuperada", "estado"]
     filter_columns = ["aliado", "casa", "casacobro", "agencia"]
     servicios_column = "nservicios"
-    pago_column = ["pago"]
+    pago_column = ["pago", "pago total"]
     datepayment_column = ["fechadepago"]
-    concept_column = ["concepto", "estadoactual"]
+    concept_column = ["concepto", "estadoactual", "estado"]
 
-    # Iterate through all files in the input folder
     print(f"\n🔍 Scanning folder for Excel files...")
     excel_files = [f for f in os.listdir(input_folder) if f.endswith(".xlsx") or f.endswith(".xls")]
     print(f"📊 Found {len(excel_files)} Excel file(s)")
@@ -45,14 +36,14 @@ def process_ranking_files(input_folder, output_file):
             file_has_data = False
             sheet_count = 0
 
-            # Iterate through all sheets in the Excel file
             for sheet_name in excel_data.sheet_names:
                 sheet_count += 1
                 print(f"   📊 Processing sheet {sheet_count}: {sheet_name[:20]}...", end=" ")
                 
                 df = excel_data.parse(sheet_name)
 
-                # Normalize column names: strip spaces, convert to lowercase, and replace special characters
+                original_columns = df.columns.str.lower().tolist()
+                
                 df.columns = (
                     df.columns.str.strip()
                     .str.lower()
@@ -60,7 +51,8 @@ def process_ranking_files(input_folder, output_file):
                     .str.replace(r"[^\w\s]", "", regex=True)
                 )
 
-                # Filter rows dynamically based on filter_columns
+                is_special_estado_file = "estado" in original_columns
+                
                 filter_column = next((col for col in filter_columns if col in df.columns), None)
                 if filter_column:
                     initial_count = len(df)
@@ -74,7 +66,6 @@ def process_ranking_files(input_folder, output_file):
                     print(f"❌ No filter column found")
                     continue
 
-                # Handle "cuenta" columns dynamically
                 cuenta_column = next((col for col in cuenta_columns if col in df.columns), None)
                 if cuenta_column:
                     df["cuenta"] = (df[cuenta_column]
@@ -83,7 +74,6 @@ def process_ranking_files(input_folder, output_file):
                                     .str.replace(r"\.0$", "", regex=True)
                                     .str.replace(".", "", regex=False))
 
-                    # Count occurrences of each "cuenta" and add a "servicios" column
                     if servicios_column in df.columns:
                         df["servicios"] = df[servicios_column]
                         df["tipo"] = "fija"
@@ -94,51 +84,43 @@ def process_ranking_files(input_folder, output_file):
                     print(f"❌ No cuenta column found")
                     continue
 
-                # Add "pago" column dynamically
                 payment_column = next((col for col in pago_column if col in df.columns), None)
                 if payment_column:
                     df["pago"] = df[payment_column]
                 else:
                     df["pago"] = None
 
-                # Add "fecha" column dynamically
                 date_column = next((col for col in datepayment_column if col in df.columns), None)
                 if date_column:
                     df["fecha"] = df[date_column]
                 else:
                     df["fecha"] = None
 
-                # Add "concepto" column dynamically
                 concepto_column = next((col for col in concept_column if col in df.columns), None)
                 if concepto_column:
                     df["concepto"] = df[concepto_column]
                 else:
                     df["concepto"] = None
 
-                # Add "estado" column dynamically
                 estado_column = next((col for col in estado_columns if col in df.columns), None)
                 if estado_column:
                     df["estado"] = df[estado_column]
                 else:
                     df["estado"] = df["concepto"]
 
-                # ===== NUEVA LÓGICA PARA ARCHIVO CON COLUMNA ESTADO =====
-                # Verificar si existe la columna 'estado' (original del archivo)
-                if 'estado' in df.columns:
-                    # Crear copia de la columna estado original para no perderla
-                    df['estado_original'] = df['estado']
+                if is_special_estado_file:
+                    if 'concepto' in df.columns:
+                        df['concepto_real'] = df['concepto']
+                    elif 'estado' in original_columns and 'estado' in df.columns:
+                        df['concepto_real'] = df['estado']
                     
-                    # Aplicar la lógica específica: CAIDO = GESTIONAR, lo demás = NO GESTIONAR
-                    df['estado'] = df['estado_original'].apply(
+                    df['estado'] = df['estado'].apply(
                         lambda x: "GESTIONAR" if str(x).strip().upper() == "CAIDO" else "NO GESTIONAR"
                     )
-                    print(f"   🔄 Aplicada lógica especial para columna ESTADO: CAIDO → GESTIONAR, otros → NO GESTIONAR")
+                    print(f"   🔄 Aplicada lógica especial: CAIDO → GESTIONAR, otros → NO GESTIONAR")
                 else:
-                    # Si no existe la columna estado original, mantener la lógica existente
-                    # Create a new column "llave" based on "estado" and "tipo"
                     df["llave"] = (df["estado"].astype(str) + df["tipo"].astype(str)).str.upper()
 
-                    # Update "estado" based on "llave"
                     df["estado"] = df["llave"].apply(
                         lambda x: "NO RECUPERADA" if x == "NOFIJA" else
                                   "RECUPERADA" if x == "SIFIJA" else
@@ -152,25 +134,29 @@ def process_ranking_files(input_folder, output_file):
                                   "NO GESTIONAR" if x == "PAGO TOTAL SI_RXMOVIL" else
                                   "NO GESTIONAR" if x == "PAGO TOTAL SI-RX" else
                                   "GESTIONAR" if x == "SIMOVIL" else
-                                  "GESTION RECAUDO" if "GESTION RECAUDO" in x else
-                                  "GESTION RECAUDO" if "GESTION_RECAUDO" in x else
-                                  "GESTION RECAUDO" if "GESTIÓN_RECAUDO" in x else
-                                  "GESTION RECAUDO" if "GESTIÓN RECAUDO" in x else
-                                  x
+                                  "GESTION RECAUDO" if "GESTION RECAUDO" in str(x) else
+                                  "GESTION RECAUDO" if "GESTION_RECAUDO" in str(x) else
+                                  "GESTIÓN RECAUDO" if "GESTIÓN_RECAUDO" in str(x) else
+                                  "GESTIÓN RECAUDO" if "GESTIÓN RECAUDO" in str(x) else
+                                  str(x)
                     )
                 
                 df["archivo"] = file
                 
-                # Select relevant columns if they exist
                 df.columns = df.columns.str.upper()
+                
                 required_columns = ["CUENTA", "SERVICIOS", "ESTADO"]
                 required_columns_detail = ["CUENTA", "SERVICIOS", "ESTADO", "PAGO", "FECHA", "CONCEPTO", "ARCHIVO"]
                 
+                if 'CONCEPTO_REAL' in df.columns:
+                    df['CONCEPTO'] = df['CONCEPTO_REAL']
+                
                 df_detail = df[[col for col in required_columns_detail if col in df.columns]]
-                df_detail["PAGO"] = df_detail["PAGO"].fillna(0).astype(int)
+                if 'PAGO' in df_detail.columns:
+                    df_detail["PAGO"] = df_detail["PAGO"].fillna(0).astype(int)
+                
                 df = df[[col for col in required_columns if col in df.columns]]
 
-                # Remove duplicates
                 initial_dup_count = len(df)
                 df = df.drop_duplicates()
                 df_detail = df_detail.drop_duplicates()
@@ -178,7 +164,6 @@ def process_ranking_files(input_folder, output_file):
                 if dup_removed > 0:
                     print(f"   🧹 Removed {dup_removed} duplicates")
 
-                # Append to the list of all data
                 if len(df) > 0:
                     all_data.append(df)
                     all_data_detail.append(df_detail)
@@ -201,11 +186,9 @@ def process_ranking_files(input_folder, output_file):
     print(f"✅ Successfully processed: {processed_files_count} file(s)")
     print(f"⚠️  Unprocessed files: {len(unprocessed_files)}")
     
-    # Concatenate all data and save to CSV
     if all_data:
         print(f"\n💾 Saving results...")
         
-        # Save for CARGUE
         folder = f"---- Bases para CARGUE ----"
         output_directory = os.path.join(output_file, folder)
         os.makedirs(output_directory, exist_ok=True)
@@ -216,7 +199,6 @@ def process_ranking_files(input_folder, output_file):
         print(f"📁 CARGUE file saved: {output_file_ranking}")
         print(f"   📊 Total records: {len(final_df)}")
         
-        # Save for CRUCE
         folder = f"---- Bases para CRUCE ----"
         output_directory = os.path.join(output_file, folder)
         os.makedirs(output_directory, exist_ok=True)
@@ -233,7 +215,6 @@ def process_ranking_files(input_folder, output_file):
     else:
         print(f"\n❌ No data found to process.")
         
-    # Log unprocessed files
     if unprocessed_files:
         unprocessed_files_str = "\n".join(unprocessed_files)
         print(f"\n⚠️  Showing warning for {len(unprocessed_files)} unprocessed file(s)")
