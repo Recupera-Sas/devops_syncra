@@ -12,46 +12,36 @@ def Function_Exclusions(Path: str, Outpath: str, Partitions: int) -> pl.DataFram
     cleans the account number, and prepares the final output DataFrame.
     """
     
-    # Calculate the fixed date string once (eagerly)
     current_date = datetime.now().strftime("%Y-%m-%d")
 
-    # Required columns for the operation
     management_cols = ["cuenta", "perfil_historico", "ultimo_perfil", "mejorperfil"]
     
-    # 1. Start the LazyFrame scan (equivalent to spark.read.csv)
-    # Scan_csv is used for performance, executing the plan lazily.
     ldf = (
         pl.scan_csv(
             Path, 
             has_header=True, 
             separator=";",
-            # Assuming the file is read as UTF8 strings for the cleaning and filtering steps.
         )
         
-        # 2. Select the required columns
         .select(management_cols)
         
-        # 3. Clean 'cuenta' Column: Remove hyphens (equivalent to regexp_replace(col("cuenta"), "-", ""))
         .with_columns(
             pl.col("cuenta")
-            .str.replace_all("-", "", literal=True) # literal=True for simple string replacement
+            .str.replace_all("-", "", literal=True)
             .alias("cuenta")
         )
         
-        # 4. Select/Reorder and Deduplicate
         .select("cuenta", "ultimo_perfil", "mejorperfil", "perfil_historico")
-        .unique() # dropDuplicates() equivalent
+        .unique()
         
-        # 5. Filter Logic: Filter where all three profile columns equal "Reclamacion"
         .filter(
             (pl.col("ultimo_perfil") == "Reclamacion") &
             (pl.col("mejorperfil") == "Reclamacion") &
             (pl.col("perfil_historico") == "Reclamacion")
         )
         
-        # 6. Add Date Column and Rename
         .with_columns(
-            pl.lit(current_date).alias("FECHA") # Add fixed date string column (equivalent to lit(datetime.now()...))
+            pl.lit(current_date).alias("FECHA") 
         )
         .rename({"cuenta": "CUENTA"}) # withColumnRenamed() equivalent
         

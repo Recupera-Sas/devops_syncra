@@ -1,5 +1,5 @@
 import pandas as pd
-from gui import registers_telematic
+from gui.files_process import registers_telematic
 import numpy as np
 import os
 from datetime import datetime
