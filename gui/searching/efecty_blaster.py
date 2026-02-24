@@ -205,6 +205,75 @@ def process_blaster_to_common_format(df_blaster, df_assignment):
     
     return df_joined.select(columns)
 
+def process_blaster_no_cruce(df_blaster, df_assignment):
+    """Procesa registros de Blaster que no cruzaron con asignación"""
+    ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
+    
+    df_no_cruce = df_blaster.join(
+        ids_asignacion,
+        left_on='identificacion',
+        right_on='cuenta_next',
+        how='anti'
+    )
+    
+    if df_no_cruce.height == 0:
+        return None
+    
+    if 'DURACION' in df_no_cruce.columns and 'ESTADO' in df_no_cruce.columns:
+        df_no_cruce = df_no_cruce.with_columns([
+            pl.col('DURACION')
+            .map_elements(format_duration_to_seconds, return_dtype=pl.Int64)
+            .alias('_dur_sec')
+        ]).with_columns(
+            pl.when(
+                (pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO'])) & 
+                (pl.col('_dur_sec') < 5)
+            )
+            .then(pl.lit('CONTESTADA PARCIAL'))
+            .otherwise(pl.col('ESTADO'))
+            .alias('ESTADO')
+        ).drop('_dur_sec')
+    
+    if 'FECHA DE MARCACION' in df_no_cruce.columns:
+        df_no_cruce = df_no_cruce.with_columns(
+            pl.col('FECHA DE MARCACION')
+            .map_elements(clean_datetime_string, return_dtype=pl.Utf8)
+            .alias('FECHA DE MARCACION')
+        )
+    
+    columns = []
+    columns.append(pl.lit(COLUMN_CONFIG['BLASTER']['CANAL']).cast(pl.Utf8).alias('CANAL'))
+    columns.append(pl.col('ESTADO').cast(pl.Utf8).alias('ESTADO') if 'ESTADO' in df_no_cruce.columns else pl.lit('').cast(pl.Utf8).alias('ESTADO'))
+    columns.append(pl.col('FECHA DE MARCACION').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA') if 'FECHA DE MARCACION' in df_no_cruce.columns else pl.lit('').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA'))
+    
+    if 'DURACION' in df_no_cruce.columns:
+        columns.append(
+            pl.col('DURACION')
+            .map_elements(format_duration_to_seconds, return_dtype=pl.Int64)
+            .cast(pl.Int64)
+            .alias('DURACION_SEGUNDOS')
+        )
+    else:
+        columns.append(pl.lit(0).cast(pl.Int64).alias('DURACION_SEGUNDOS'))
+    
+    if 'NUMERO MARCADO' in df_no_cruce.columns:
+        columns.append(pl.col('NUMERO MARCADO').cast(pl.Utf8).alias('CELULAR'))
+    elif 'TELEFONO 1' in df_no_cruce.columns:
+        columns.append(pl.col('TELEFONO 1').cast(pl.Utf8).alias('CELULAR'))
+    else:
+        columns.append(pl.lit('').cast(pl.Utf8).alias('CELULAR'))
+    
+    columns.append((pl.col('identificacion').cast(pl.Utf8) + '-').alias('IDENTIFICACION'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('MARCA'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('CRM_ORIGEN'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('TIPO_BASE'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('FECHA_INGRESO'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('RANGO_SALDO'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('NOMBRE_CAMPANA'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('NOMBRE DE LA CAMPAÑA'))
+    
+    return df_no_cruce.select(columns)
+
 def process_ivr_to_common_format(df_ivr, df_assignment):
     assignment_cols = ['cuenta_next', 'marca', 'crm_origen', 'tipo_base', 
                       'fecha_ingreso', 'rango_saldo', 'nombre_campana']
@@ -276,9 +345,79 @@ def process_ivr_to_common_format(df_ivr, df_assignment):
     
     return df_joined.select(columns)
 
+def process_ivr_no_cruce(df_ivr, df_assignment):
+    """Procesa registros de IVR que no cruzaron con asignación"""
+    ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
+    
+    df_no_cruce = df_ivr.join(
+        ids_asignacion,
+        left_on='identificacion',
+        right_on='cuenta_next',
+        how='anti'
+    )
+    
+    if df_no_cruce.height == 0:
+        return None
+    
+    if 'Mejor_Marcacion' in df_no_cruce.columns:
+        df_no_cruce = df_no_cruce.with_columns(
+            pl.when(pl.col('Mejor_Marcacion').is_in(COLUMN_CONFIG['IVR_SAEM']['ESTADO_TRANSLATIONS'].keys()))
+            .then(pl.col('Mejor_Marcacion').replace(COLUMN_CONFIG['IVR_SAEM']['ESTADO_TRANSLATIONS']))
+            .otherwise(pl.col('Mejor_Marcacion'))
+            .alias('ESTADO')
+        )
+    else:
+        df_no_cruce = df_no_cruce.with_columns(pl.lit('').cast(pl.Utf8).alias('ESTADO'))
+    
+    if 'secounds' in df_no_cruce.columns and 'ESTADO' in df_no_cruce.columns:
+        df_no_cruce = df_no_cruce.with_columns(
+            pl.when(
+                (pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO'])) & 
+                (pl.col('secounds').fill_null(0) < 5)
+            )
+            .then(pl.lit('CONTESTADA PARCIAL'))
+            .otherwise(pl.col('ESTADO'))
+            .alias('ESTADO')
+        )
+    
+    if 'Fecha_Inicio_Ultima_Llamada' in df_no_cruce.columns:
+        df_no_cruce = df_no_cruce.with_columns(
+            pl.col('Fecha_Inicio_Ultima_Llamada')
+            .map_elements(clean_datetime_string, return_dtype=pl.Utf8)
+            .alias('Fecha_Inicio_Ultima_Llamada')
+        )
+    
+    columns = []
+    columns.append(pl.lit(COLUMN_CONFIG['IVR_SAEM']['CANAL']).cast(pl.Utf8).alias('CANAL'))
+    columns.append(pl.col('ESTADO').cast(pl.Utf8).alias('ESTADO'))
+    columns.append(pl.col('Fecha_Inicio_Ultima_Llamada').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA') if 'Fecha_Inicio_Ultima_Llamada' in df_no_cruce.columns else pl.lit('').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA'))
+    
+    if 'secounds' in df_no_cruce.columns:
+        columns.append(
+            pl.col('secounds')
+            .cast(pl.Int64)
+            .fill_null(0)
+            .cast(pl.Int64)
+            .alias('DURACION_SEGUNDOS')
+        )
+    else:
+        columns.append(pl.lit(0).cast(pl.Int64).alias('DURACION_SEGUNDOS'))
+    
+    columns.append(pl.col('Celular').cast(pl.Utf8).alias('CELULAR') if 'Celular' in df_no_cruce.columns else pl.lit('').cast(pl.Utf8).alias('CELULAR'))
+    columns.append((pl.col('identificacion').cast(pl.Utf8) + '-').alias('IDENTIFICACION'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('MARCA'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('CRM_ORIGEN'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('TIPO_BASE'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('FECHA_INGRESO'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('RANGO_SALDO'))
+    columns.append(pl.lit('').cast(pl.Utf8).alias('NOMBRE_CAMPANA'))
+    columns.append(pl.lit('ivr masivo').cast(pl.Utf8).alias('NOMBRE DE LA CAMPAÑA'))
+    
+    return df_no_cruce.select(columns)
+
 def process_ivr_data(input_folder: str, output_folder: str):
     print(f"\n{'='*60}")
-    print(f"CONSOLIDADO BLASTER + IVR SAEM")
+    print(f"CONSOLIDADO BLASTER + IVR SAEM (CON Y SIN CRUCE)")
     print(f"{'='*60}")
     
     input_path = Path(input_folder)
@@ -346,30 +485,56 @@ def process_ivr_data(input_folder: str, output_folder: str):
         print(f"❌ ERROR: No hay archivo de asignación")
         return
     
-    all_dfs = []
+    # DataFrames para registros que cruzaron
+    all_dfs_cruzaron = []
     
+    # DataFrames para registros que NO cruzaron
+    all_dfs_no_cruzaron = []
+    
+    # Procesar Blaster
     if df_blaster_raw is not None:
-        print(f"📊 Blaster: {df_blaster_raw.height:,} registros")
+        print(f"\n📊 Blaster: {df_blaster_raw.height:,} registros")
+        
+        # Registros que cruzaron
         df_blaster = process_blaster_to_common_format(df_blaster_raw, df_assignment)
         if df_blaster is not None:
-            all_dfs.append(df_blaster)
-            print(f"  ✅ Match: {df_blaster.height:,}")
+            all_dfs_cruzaron.append(df_blaster)
+            print(f"  ✅ Cruzaron: {df_blaster.height:,}")
+        
+        # Registros que NO cruzaron
+        df_blaster_no_cruce = process_blaster_no_cruce(df_blaster_raw, df_assignment)
+        if df_blaster_no_cruce is not None:
+            all_dfs_no_cruzaron.append(df_blaster_no_cruce)
+            print(f"  ❌ NO cruzaron: {df_blaster_no_cruce.height:,}")
     
+    # Procesar IVR
     if df_ivr_raw is not None:
-        print(f"📊 IVR SAEM: {df_ivr_raw.height:,} registros")
+        print(f"\n📊 IVR SAEM: {df_ivr_raw.height:,} registros")
+        
+        # Registros que cruzaron
         df_ivr = process_ivr_to_common_format(df_ivr_raw, df_assignment)
         if df_ivr is not None:
-            all_dfs.append(df_ivr)
-            print(f"  ✅ Match: {df_ivr.height:,}")
+            all_dfs_cruzaron.append(df_ivr)
+            print(f"  ✅ Cruzaron: {df_ivr.height:,}")
+        
+        # Registros que NO cruzaron
+        df_ivr_no_cruce = process_ivr_no_cruce(df_ivr_raw, df_assignment)
+        if df_ivr_no_cruce is not None:
+            all_dfs_no_cruzaron.append(df_ivr_no_cruce)
+            print(f"  ❌ NO cruzaron: {df_ivr_no_cruce.height:,}")
     
-    if all_dfs:
-        df_final = pl.concat(all_dfs, how="vertical")
+    # Guardar archivos de los que CRUZARON
+    if all_dfs_cruzaron:
+        df_final = pl.concat(all_dfs_cruzaron, how="vertical")
         df_final = df_final.select([col for col in COLUMNS_TARGET if col in df_final.columns])
         
         output_file = output_path / f'reporte_consolidado_blaster_ivr_{timestamp}.csv'
         df_final.write_csv(output_file, separator=';', quote_style='never')
         
-        print(f"\n✅ Reporte general: {output_file.name}")
+        print(f"\n{'='*40}")
+        print(f"📁 ARCHIVOS - REGISTROS QUE CRUZARON")
+        print(f"{'='*40}")
+        print(f"✅ Reporte general: {output_file.name}")
         print(f"📊 Total: {df_final.height:,} registros")
         
         df_efectivo = df_final.filter(pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO', 'CONTESTADA PARCIAL']))
@@ -383,6 +548,45 @@ def process_ivr_data(input_folder: str, output_folder: str):
         canal_counts = df_final['CANAL'].value_counts()
         for row in canal_counts.iter_rows():
             print(f"   • {row[0]}: {row[1]:,} ({row[1]/df_final.height*100:.1f}%)")
+    
+    # Guardar archivos de los que NO CRUZARON
+    if all_dfs_no_cruzaron:
+        df_no_cruce_total = pl.concat(all_dfs_no_cruzaron, how="vertical")
+        df_no_cruce_total = df_no_cruce_total.select([col for col in COLUMNS_TARGET if col in df_no_cruce_total.columns])
+        
+        print(f"\n{'='*40}")
+        print(f"📁 ARCHIVOS - REGISTROS QUE NO CRUZARON (PREFIJO 'nocruza_')")
+        print(f"{'='*40}")
+        
+        # Archivo general de no cruzados
+        output_no_cruce = output_path / f'nocruza_consolidado_blaster_ivr_{timestamp}.csv'
+        df_no_cruce_total.write_csv(output_no_cruce, separator=';', quote_style='never')
+        print(f"✅ Reporte general NO CRUZADOS: {output_no_cruce.name}")
+        print(f"📊 Total NO CRUZADOS: {df_no_cruce_total.height:,} registros")
+        
+        # Archivo efectivo de no cruzados
+        df_efectivo_no_cruce = df_no_cruce_total.filter(pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO', 'CONTESTADA PARCIAL']))
+        
+        if df_efectivo_no_cruce.height > 0:
+            output_efectivo_no_cruce = output_path / f'nocruza_efectivo_blaster_ivr_{timestamp}.csv'
+            df_efectivo_no_cruce.write_csv(output_efectivo_no_cruce, separator=';', quote_style='never')
+            print(f"✅ Reporte efectivo NO CRUZADOS: {output_efectivo_no_cruce.name}")
+            print(f"📊 Total efectivo NO CRUZADOS: {df_efectivo_no_cruce.height:,} registros")
+        
+        # Archivos separados por canal para no cruzados
+        for canal in df_no_cruce_total['CANAL'].unique().to_list():
+            df_canal = df_no_cruce_total.filter(pl.col('CANAL') == canal)
+            canal_nombre = canal.lower().replace(' ', '_')
+            output_canal = output_path / f'nocruza_{canal_nombre}_{timestamp}.csv'
+            df_canal.write_csv(output_canal, separator=';', quote_style='never')
+            print(f"✅ Reporte {canal}: {output_canal.name}")
+            print(f"📊 {canal}: {df_canal.height:,} registros")
+        
+        # Estadísticas de no cruzados por canal
+        print(f"\n📊 Distribución NO CRUZADOS por canal:")
+        canal_counts_no_cruce = df_no_cruce_total['CANAL'].value_counts()
+        for row in canal_counts_no_cruce.iter_rows():
+            print(f"   • {row[0]}: {row[1]:,} ({row[1]/df_no_cruce_total.height*100:.1f}%)")
     
     print(f"\n{'='*60}")
     print(f"PROCESO COMPLETADO")
