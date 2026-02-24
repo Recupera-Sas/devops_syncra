@@ -3,7 +3,7 @@ import glob
 import shutil
 from pathlib import Path
 from cloud.conversion_csv_to_parquet import convert_csv_to_parquet
-import modules.report_exclusions
+import modules.telematic.claro.report_exclusions
 from gui.dynamic_thread import DynamicThread
 import utils.active_lines
 from datetime import datetime
@@ -68,7 +68,7 @@ class Charge_DB(QtWidgets.QMainWindow):
             Mbox_In_Process.setText("Por favor espere la ventana de confirmacion, mientras se procesa el archivo.")
             Mbox_In_Process.exec()
 
-            modules.report_exclusions.Function_Exclusions(file, root, partitions)
+            modules.telematic.claro.report_exclusions.Function_Exclusions(file, root, partitions)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
