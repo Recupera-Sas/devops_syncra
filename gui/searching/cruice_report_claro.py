@@ -69,6 +69,11 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         pl.col(cuenta_col).str.replace_all('-', '').alias('cuenta_clean'),
         pl.col(cuenta_next_col).str.replace_all('-', '').alias('cuenta_next_clean')
     ])
+
+    df_next = df_next.with_columns([
+        pl.col(cuenta_col).str.replace_all(r'[-.]', '').alias('cuenta_clean'),
+        pl.col(cuenta_next_col).str.replace_all(r'[-.]', '').alias('cuenta_next_clean')
+    ])
     
     cuenta_promesa_col = None
     for col in df_promesa.columns:
@@ -80,9 +85,8 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         return "❌ No se encontró la columna 'cuenta_promesa' en el archivo base"
     
     df_promesa = df_promesa.with_columns([
-        pl.col(cuenta_promesa_col).str.replace_all('-', '').alias('cuenta_promesa_clean')
+        pl.col(cuenta_promesa_col).str.replace_all(r'[-.]', '').alias('cuenta_promesa_clean')
     ])
-    
     df_merged = df_promesa.join(
         df_next,
         left_on='cuenta_promesa_clean',
@@ -212,14 +216,22 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     output_mensajes = os.path.join(output_folder, f"reporte_mensajes_{timestamp}.csv")
     df_mensajes.write_csv(output_mensajes, separator=';')
     
+    df_correo = df_final.filter(
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("corre")
+    )
+    output_correo = os.path.join(output_folder, f"reporte_correos_{timestamp}.csv")
+    df_correo.write_csv(output_correo, separator=';')
+    
     print(f"✅ Procesado: {df_final.height:,} registros totales")
     print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
     print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
     print(f"   🔹 Mensajería: {df_mensajes.height:,}")
+    print(f"   🔹 Correos detectados: {df_correo.height:,}")
     print(f"💾 Archivos guardados:")
     print(f"   📄 Completo: {output_completo}")
     print(f"   📄 Blasters: {output_efectivo}")
     print(f"   📄 No Efectivo: {output_no_efectivo}")
     print(f"   📄 Mensajes: {output_mensajes}")
+    print(f"   📄 Correos: {output_correo}")
     
     return f"✅ Archivos guardados en: {output_folder}"
