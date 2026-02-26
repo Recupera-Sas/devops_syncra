@@ -132,6 +132,9 @@ def clean_datetime_string(date_str):
     return date_str
 
 def process_blaster_to_common_format(df_blaster, df_assignment):
+    if df_assignment is None:
+        return None
+    
     assignment_cols = ['cuenta_next', 'marca', 'crm_origen', 'tipo_base', 
                       'fecha_ingreso', 'rango_saldo', 'nombre_campana']
     existing_assignment_cols = [col for col in assignment_cols if col in df_assignment.columns]
@@ -206,15 +209,17 @@ def process_blaster_to_common_format(df_blaster, df_assignment):
     return df_joined.select(columns)
 
 def process_blaster_no_cruce(df_blaster, df_assignment):
-    """Procesa registros de Blaster que no cruzaron con asignación"""
-    ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
-    
-    df_no_cruce = df_blaster.join(
-        ids_asignacion,
-        left_on='identificacion',
-        right_on='cuenta_next',
-        how='anti'
-    )
+    ids_asignacion = None
+    if df_assignment is not None:
+        ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
+        df_no_cruce = df_blaster.join(
+            ids_asignacion,
+            left_on='identificacion',
+            right_on='cuenta_next',
+            how='anti'
+        )
+    else:
+        df_no_cruce = df_blaster.clone()
     
     if df_no_cruce.height == 0:
         return None
@@ -275,6 +280,9 @@ def process_blaster_no_cruce(df_blaster, df_assignment):
     return df_no_cruce.select(columns)
 
 def process_ivr_to_common_format(df_ivr, df_assignment):
+    if df_assignment is None:
+        return None
+    
     assignment_cols = ['cuenta_next', 'marca', 'crm_origen', 'tipo_base', 
                       'fecha_ingreso', 'rango_saldo', 'nombre_campana']
     existing_assignment_cols = [col for col in assignment_cols if col in df_assignment.columns]
@@ -346,15 +354,17 @@ def process_ivr_to_common_format(df_ivr, df_assignment):
     return df_joined.select(columns)
 
 def process_ivr_no_cruce(df_ivr, df_assignment):
-    """Procesa registros de IVR que no cruzaron con asignación"""
-    ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
-    
-    df_no_cruce = df_ivr.join(
-        ids_asignacion,
-        left_on='identificacion',
-        right_on='cuenta_next',
-        how='anti'
-    )
+    ids_asignacion = None
+    if df_assignment is not None:
+        ids_asignacion = df_assignment.select(pl.col('cuenta_next')).unique()
+        df_no_cruce = df_ivr.join(
+            ids_asignacion,
+            left_on='identificacion',
+            right_on='cuenta_next',
+            how='anti'
+        )
+    else:
+        df_no_cruce = df_ivr.clone()
     
     if df_no_cruce.height == 0:
         return None
@@ -482,48 +492,40 @@ def process_ivr_data(input_folder: str, output_folder: str):
             continue
     
     if df_assignment is None:
-        print(f"❌ ERROR: No hay archivo de asignación")
-        return
+        print(f"\n⚠️  ADVERTENCIA: No se encontró archivo de asignación")
+        print(f"   Todos los registros se procesarán como NO CRUZADOS")
     
-    # DataFrames para registros que cruzaron
     all_dfs_cruzaron = []
-    
-    # DataFrames para registros que NO cruzaron
     all_dfs_no_cruzaron = []
     
-    # Procesar Blaster
     if df_blaster_raw is not None:
         print(f"\n📊 Blaster: {df_blaster_raw.height:,} registros")
         
-        # Registros que cruzaron
-        df_blaster = process_blaster_to_common_format(df_blaster_raw, df_assignment)
-        if df_blaster is not None:
-            all_dfs_cruzaron.append(df_blaster)
-            print(f"  ✅ Cruzaron: {df_blaster.height:,}")
+        if df_assignment is not None:
+            df_blaster = process_blaster_to_common_format(df_blaster_raw, df_assignment)
+            if df_blaster is not None:
+                all_dfs_cruzaron.append(df_blaster)
+                print(f"  ✅ Cruzaron: {df_blaster.height:,}")
         
-        # Registros que NO cruzaron
         df_blaster_no_cruce = process_blaster_no_cruce(df_blaster_raw, df_assignment)
         if df_blaster_no_cruce is not None:
             all_dfs_no_cruzaron.append(df_blaster_no_cruce)
             print(f"  ❌ NO cruzaron: {df_blaster_no_cruce.height:,}")
     
-    # Procesar IVR
     if df_ivr_raw is not None:
         print(f"\n📊 IVR SAEM: {df_ivr_raw.height:,} registros")
         
-        # Registros que cruzaron
-        df_ivr = process_ivr_to_common_format(df_ivr_raw, df_assignment)
-        if df_ivr is not None:
-            all_dfs_cruzaron.append(df_ivr)
-            print(f"  ✅ Cruzaron: {df_ivr.height:,}")
+        if df_assignment is not None:
+            df_ivr = process_ivr_to_common_format(df_ivr_raw, df_assignment)
+            if df_ivr is not None:
+                all_dfs_cruzaron.append(df_ivr)
+                print(f"  ✅ Cruzaron: {df_ivr.height:,}")
         
-        # Registros que NO cruzaron
         df_ivr_no_cruce = process_ivr_no_cruce(df_ivr_raw, df_assignment)
         if df_ivr_no_cruce is not None:
             all_dfs_no_cruzaron.append(df_ivr_no_cruce)
             print(f"  ❌ NO cruzaron: {df_ivr_no_cruce.height:,}")
     
-    # Guardar archivos de los que CRUZARON
     if all_dfs_cruzaron:
         df_final = pl.concat(all_dfs_cruzaron, how="vertical")
         df_final = df_final.select([col for col in COLUMNS_TARGET if col in df_final.columns])
@@ -549,7 +551,6 @@ def process_ivr_data(input_folder: str, output_folder: str):
         for row in canal_counts.iter_rows():
             print(f"   • {row[0]}: {row[1]:,} ({row[1]/df_final.height*100:.1f}%)")
     
-    # Guardar archivos de los que NO CRUZARON
     if all_dfs_no_cruzaron:
         df_no_cruce_total = pl.concat(all_dfs_no_cruzaron, how="vertical")
         df_no_cruce_total = df_no_cruce_total.select([col for col in COLUMNS_TARGET if col in df_no_cruce_total.columns])
@@ -558,13 +559,11 @@ def process_ivr_data(input_folder: str, output_folder: str):
         print(f"📁 ARCHIVOS - REGISTROS QUE NO CRUZARON (PREFIJO 'nocruza_')")
         print(f"{'='*40}")
         
-        # Archivo general de no cruzados
         output_no_cruce = output_path / f'nocruza_consolidado_blaster_ivr_{timestamp}.csv'
         df_no_cruce_total.write_csv(output_no_cruce, separator=';', quote_style='never')
         print(f"✅ Reporte general NO CRUZADOS: {output_no_cruce.name}")
         print(f"📊 Total NO CRUZADOS: {df_no_cruce_total.height:,} registros")
         
-        # Archivo efectivo de no cruzados
         df_efectivo_no_cruce = df_no_cruce_total.filter(pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO', 'CONTESTADA PARCIAL']))
         
         if df_efectivo_no_cruce.height > 0:
@@ -573,7 +572,6 @@ def process_ivr_data(input_folder: str, output_folder: str):
             print(f"✅ Reporte efectivo NO CRUZADOS: {output_efectivo_no_cruce.name}")
             print(f"📊 Total efectivo NO CRUZADOS: {df_efectivo_no_cruce.height:,} registros")
         
-        # Archivos separados por canal para no cruzados
         for canal in df_no_cruce_total['CANAL'].unique().to_list():
             df_canal = df_no_cruce_total.filter(pl.col('CANAL') == canal)
             canal_nombre = canal.lower().replace(' ', '_')
@@ -582,7 +580,6 @@ def process_ivr_data(input_folder: str, output_folder: str):
             print(f"✅ Reporte {canal}: {output_canal.name}")
             print(f"📊 {canal}: {df_canal.height:,} registros")
         
-        # Estadísticas de no cruzados por canal
         print(f"\n📊 Distribución NO CRUZADOS por canal:")
         canal_counts_no_cruce = df_no_cruce_total['CANAL'].value_counts()
         for row in canal_counts_no_cruce.iter_rows():
