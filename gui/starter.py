@@ -3,7 +3,7 @@ import bigdata.demos_ai
 import bigdata.touch_ai
 import bigdata.union_datalakes_claro
 from gui.reports import report_batch_count
-from gui.searching import efecty_blaster
+from gui.searching import cruice_demographic, efecty_blaster
 from gui.apis import batch_api_claro
 import gui.reports.batch_cruice
 from gui.searching import cruice_report_claro
@@ -275,6 +275,7 @@ class Init_APP():
         self.process_data.pushButton_34.clicked.connect(self.exec_batch_claro)
         self.process_data.pushButton_35.clicked.connect(self.exec_report_batch_claro)
         self.process_data.pushButton_36.clicked.connect(self.exec_report_count_batch_claro)
+        self.process_data.pushButton_37.clicked.connect(self.exec_report_cruice_demographic_claro)
         self.process_data.pushButton_14.clicked.connect(self.copy_schema_campaings)
         self.process_data.pushButton_7.clicked.connect(self.copy_schema_masiv)
 
@@ -2252,6 +2253,37 @@ class Init_APP():
             
             folder_path_bg = f"{self.folder_path}"
             report_batch_count.process_call_files(self.folder_path_IVR, folder_path_bg)
+
+            Mbox_In_Process = QMessageBox() 
+            Mbox_In_Process.setWindowTitle("")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Reporte generado exitosamente.")
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
+            Mbox_File_Error.exec()
+    
+    def exec_report_cruice_demographic_claro(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el cruce.")
+            Mbox_In_Process.exec()
+            
+            folder_path_bg = f"{self.folder_path}"
+            cruice_demographic.demographic_cross(self.folder_path_IVR, folder_path_bg)
 
             Mbox_In_Process = QMessageBox() 
             Mbox_In_Process.setWindowTitle("")
