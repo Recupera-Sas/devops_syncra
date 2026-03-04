@@ -37,9 +37,6 @@ import gui.reports.union_demo
 import gui.conversion.conversion_csv
 import gui.union_files
 import skills.count_telematic
-import skills.count_sms
-import skills.count_bot
-import skills.count_email
 import utils.IVR_Change_Audios
 import utils.IVR_Downloads_List
 import utils.IVR_Clean_Lists
