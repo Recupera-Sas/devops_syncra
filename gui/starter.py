@@ -36,7 +36,7 @@ import gui.reports.structure_files
 import gui.reports.union_demo
 import gui.conversion.conversion_csv
 import gui.union_files
-import skills.count_ivr
+import skills.count_telematic
 import skills.count_sms
 import skills.count_bot
 import skills.count_email
@@ -2315,14 +2315,8 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
             Mbox_In_Process.exec()
             
-            Path_Resource = f"{self.folder_path_IVR}/IVR"
-            self.Base = skills.count_ivr.function_complete_IVR(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-            Path_Resource = f"{self.folder_path_IVR}/BOT"
-            self.Base = skills.count_bot.function_complete_BOT(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-            Path_Resource = f"{self.folder_path_IVR}/EMAIL"
-            self.Base = skills.count_email.function_complete_EMAIL(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-            Path_Resource = f"{self.folder_path_IVR}/SMS"
-            self.Base = skills.count_sms.function_complete_SMS(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
+            Path_Resource = f"{self.folder_path_IVR}"
+            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -2339,7 +2333,7 @@ class Init_APP():
             Mbox_In_Process.exec()
 
             Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_ivr.function_complete_IVR(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
+            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -2356,7 +2350,7 @@ class Init_APP():
             Mbox_In_Process.exec()
             
             Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_bot.function_complete_BOT(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
+            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -2373,7 +2367,7 @@ class Init_APP():
             Mbox_In_Process.exec()
             
             Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_sms.function_complete_SMS(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
+            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
@@ -2390,7 +2384,7 @@ class Init_APP():
             Mbox_In_Process.exec()
             
             Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_email.function_complete_EMAIL(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
+            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("")
