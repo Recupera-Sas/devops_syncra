@@ -117,6 +117,9 @@ def process_batch_files(input_path, output_path):
         if not dt_str:
             return None
         
+        # Manejar segundos como "0.0"
+        dt_str = re.sub(r'\.0$', '', dt_str)
+        
         formats = [
             '%Y-%m-%dT%H:%M:%S',
             '%Y-%m-%d %H:%M:%S',
@@ -130,6 +133,15 @@ def process_batch_files(input_path, output_path):
             '%d-%m-%Y',
         ]
         
+        # Intentar parsear con expresiones regulares primero para formatos con decimales
+        decimal_match = re.search(r'(\d{4}[-/]\d{2}[-/]\d{2}[T ]\d{2}:\d{2}:\d{2})\.\d+', dt_str)
+        if decimal_match:
+            try:
+                base_dt = decimal_match.group(1).replace('/', '-').replace(' ', 'T')
+                return base_dt
+            except:
+                pass
+        
         for fmt in formats:
             try:
                 dt_obj = datetime.strptime(dt_str, fmt)
@@ -137,7 +149,9 @@ def process_batch_files(input_path, output_path):
             except:
                 continue
         
+        # Intentar extraer fecha y hora de strings complejos
         try:
+            # Buscar patrones de fecha y hora
             date_match = re.search(r'(\d{4}[-/]\d{2}[-/]\d{2})', dt_str)
             time_match = re.search(r'(\d{2}:\d{2}:\d{2})', dt_str)
             
@@ -147,6 +161,16 @@ def process_batch_files(input_path, output_path):
                 return f"{date_part}T{time_part}"
             elif date_match:
                 return f"{date_match.group(1).replace('/', '-')}T00:00:00"
+            
+            # Buscar timestamp numérico
+            if dt_str.replace('.', '').isdigit() and '.' in dt_str:
+                try:
+                    # Convertir timestamp a datetime
+                    timestamp = float(dt_str)
+                    dt_obj = datetime.fromtimestamp(timestamp)
+                    return dt_obj.strftime('%Y-%m-%dT%H:%M:%S')
+                except:
+                    pass
         except:
             pass
         
@@ -168,6 +192,15 @@ def process_batch_files(input_path, output_path):
             if name in df.columns:
                 return name
         return None
+
+    def safe_format_seconds(seconds_val):
+        """Convierte segundos a string eliminando decimales si es necesario"""
+        if seconds_val is None:
+            return "0"
+        seconds_str = str(seconds_val)
+        # Eliminar .0 si existe
+        seconds_str = re.sub(r'\.0$', '', seconds_str)
+        return seconds_str
 
     for fname in data_payloads:
         fpath = os.path.join(input_path, fname)
@@ -262,10 +295,19 @@ def process_batch_files(input_path, output_path):
                                 else:
                                     fecha_formateada = pl.lit(datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
                                 
+                                # Formatear duración manejando segundos con decimales
+                                duracion_col = 'DURACION'
+                                if duracion_col in joined.columns:
+                                    duracion_formateada = joined[duracion_col].map_elements(
+                                        safe_format_seconds, return_dtype=pl.Utf8
+                                    )
+                                else:
+                                    duracion_formateada = pl.lit("0")
+                                
                                 res = joined.select([
                                     (pl.col('ESTADO').cast(pl.Utf8).replace(status_map) + 
                                      " - " + pl.col('NOMBRE DE LA CAMPAÑA').cast(pl.Utf8).fill_null("BLASTER") + 
-                                     " - Duracion: " + pl.col('DURACION').cast(pl.Utf8)).alias('gestion'),
+                                     " - Duracion: " + duracion_formateada).alias('gestion'),
                                     pl.lit("Caller ID rotativo").alias('usuario'),
                                     fecha_formateada.alias('fechagestion'),
                                     pl.lit("Ejecucion del Blaster").alias('accion'),
@@ -285,10 +327,19 @@ def process_batch_files(input_path, output_path):
                                     )
                                 else:
                                     fecha_formateada = pl.lit(datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
+                                
+                                # Formatear segundos manejando decimales
+                                segundos_col = 'secounds'
+                                if segundos_col in joined.columns:
+                                    segundos_formateada = joined[segundos_col].map_elements(
+                                        safe_format_seconds, return_dtype=pl.Utf8
+                                    )
+                                else:
+                                    segundos_formateada = pl.lit("0")
 
                                 res = joined.select([
                                     (pl.col('Mejor_Marcacion').cast(pl.Utf8) + 
-                                     " - Duracion: " + pl.col('secounds').cast(pl.Utf8)).alias('gestion'),
+                                     " - Duracion: " + segundos_formateada).alias('gestion'),
                                     pl.lit("Caller ID rotativo").alias('usuario'),
                                     fecha_formateada.alias('fechagestion'),
                                     pl.lit("Envio manual Syncra").alias('accion'),
