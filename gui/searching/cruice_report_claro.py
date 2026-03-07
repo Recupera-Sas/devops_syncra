@@ -9,10 +9,13 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     
-    files = [f for f in os.listdir(input_folder) if f.lower().endswith('.csv')]
+    all_files = os.listdir(input_folder)
+    csv_files = [f for f in all_files if f.lower().endswith('.csv')]
+    parquet_files = [f for f in all_files if f.lower().endswith(('.parquet', '.pq'))]
+    files = csv_files + parquet_files
     
     if not files:
-        return "❌ No se encontraron archivos CSV"
+        return "❌ No se encontraron archivos CSV o Parquet"
     
     print(f"📁 Encontrados {len(files)} archivos")
     
@@ -23,13 +26,16 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         file_path = os.path.join(input_folder, file)
         
         try:
-            df = pl.read_csv(
-                file_path,
-                separator=';',
-                encoding='utf8',
-                try_parse_dates=False,
-                infer_schema_length=0
-            )
+            if file.lower().endswith('.csv'):
+                df = pl.read_csv(
+                    file_path,
+                    separator=';',
+                    encoding='utf8',
+                    try_parse_dates=False,
+                    infer_schema_length=0
+                )
+            else:
+                df = pl.read_parquet(file_path)
             
             cols = [c.lower().strip() for c in df.columns]
             
@@ -65,11 +71,6 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_next_col is None:
         return "❌ No se encontró la columna 'cuenta_next' en el archivo de cruce"
     
-    df_next = df_next.with_columns([
-        pl.col(cuenta_col).str.replace_all('-', '').alias('cuenta_clean'),
-        pl.col(cuenta_next_col).str.replace_all('-', '').alias('cuenta_next_clean')
-    ])
-
     df_next = df_next.with_columns([
         pl.col(cuenta_col).str.replace_all(r'[-.]', '').alias('cuenta_clean'),
         pl.col(cuenta_next_col).str.replace_all(r'[-.]', '').alias('cuenta_next_clean')
@@ -192,7 +193,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
-    output_completo = os.path.join(output_folder, f"reporte_cobro_completo_{timestamp}.csv")
+    output_completo = os.path.join(output_folder, f"gestion_final_completo_{timestamp}.csv")
     df_final.write_csv(output_completo, separator=';')
     
     df_efectivo = df_final.filter(
@@ -200,15 +201,21 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     )
     output_efectivo = os.path.join(output_folder, f"reporte_efectivo_blasters_{timestamp}.csv")
     df_efectivo.write_csv(output_efectivo, separator=';')
-
+    
     df_no_efectivo = df_final.filter(
         ~pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio")
     )
     df_no_efectivo = df_no_efectivo.filter(
-        ~pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("blaster|ivr")
     )
     output_no_efectivo = os.path.join(output_folder, f"reporte_no_efectivo_blasters_{timestamp}.csv")
     df_no_efectivo.write_csv(output_no_efectivo, separator=';')
+    
+    df_blasters = df_final.filter(
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("blaster|ivr")
+    )
+    output_blasters = os.path.join(output_folder, f"gestion_blasters_{timestamp}.csv")
+    df_blasters.write_csv(output_blasters, separator=';')
     
     df_mensajes = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
@@ -219,19 +226,199 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_correo = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("corre")
     )
+    
+    if df_correo.height > 0:
+        primer_valor = df_correo['linea_telefonica_mail'].to_list()[0]
+        if primer_valor is not None and '|' in str(primer_valor):
+            try:
+                df_correo = df_correo.with_columns([
+                    pl.col('linea_telefonica_mail').str.split_exact('|', 1).struct.field('field_1').alias('linea_telefonica_mail_temp')
+                ])
+                df_correo = df_correo.with_columns([
+                    pl.col('linea_telefonica_mail_temp').fill_null(pl.col('linea_telefonica_mail')).alias('linea_telefonica_mail')
+                ])
+                df_correo = df_correo.drop('linea_telefonica_mail_temp')
+            except:
+                pass
+    
     output_correo = os.path.join(output_folder, f"reporte_correos_{timestamp}.csv")
     df_correo.write_csv(output_correo, separator=';')
     
     print(f"✅ Procesado: {df_final.height:,} registros totales")
     print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
     print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
+    print(f"   🔹 Blasters: {df_blasters.height:,}")
     print(f"   🔹 Mensajería: {df_mensajes.height:,}")
     print(f"   🔹 Correos detectados: {df_correo.height:,}")
     print(f"💾 Archivos guardados:")
     print(f"   📄 Completo: {output_completo}")
-    print(f"   📄 Blasters: {output_efectivo}")
+    print(f"   📄 Blasters: {output_blasters}")
+    print(f"   📄 Efectivo: {output_efectivo}")
     print(f"   📄 No Efectivo: {output_no_efectivo}")
     print(f"   📄 Mensajes: {output_mensajes}")
     print(f"   📄 Correos: {output_correo}")
     
-    return f"✅ Archivos guardados en: {output_folder}"
+    return procesar_archivo_final(output_folder, output_folder)
+
+def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
+    print("🔄 Procesando archivo final con llave y cruce por prioridad...")
+    
+    csv_files = [f for f in os.listdir(input_folder) if f.lower().endswith('.csv')]
+    parquet_files = [f for f in os.listdir(input_folder) if f.lower().endswith(('.parquet', '.pq'))]
+    all_files = csv_files + parquet_files
+    
+    archivo_final = None
+    for file in all_files:
+        if 'completo' in file.lower():
+            archivo_final = file
+            break
+    
+    if archivo_final is None:
+        return "❌ No se encontró archivo completo para procesar"
+    
+    file_path = os.path.join(input_folder, archivo_final)
+    
+    if archivo_final.lower().endswith('.csv'):
+        df = pl.read_csv(
+            file_path, 
+            separator=';', 
+            try_parse_dates=False,
+            infer_schema_length=10000,
+            encoding='utf8'
+        )
+    else:
+        df = pl.read_parquet(file_path)
+    
+    for col in df.columns:
+        if df[col].dtype in [pl.Int64, pl.Float64] and col in ['edad_mora_asignada', 'tipificacion', 'nombre_asesor']:
+            df = df.with_columns(pl.col(col).cast(pl.String))
+    
+    if 'linea_telefonica_mail' not in df.columns or 'Cuenta' not in df.columns:
+        df_columns_lower = {c.lower(): c for c in df.columns}
+        if 'linea_telefonica_mail' in df_columns_lower:
+            df = df.rename({df_columns_lower['linea_telefonica_mail']: 'linea_telefonica_mail'})
+        if 'cuenta' in df_columns_lower:
+            df = df.rename({df_columns_lower['cuenta']: 'Cuenta'})
+    
+    if 'linea_telefonica_mail' not in df.columns or 'Cuenta' not in df.columns:
+        return "❌ El archivo no contiene las columnas necesarias"
+    
+    df = df.with_columns([
+        pl.col('linea_telefonica_mail').cast(pl.String).fill_null('').alias('linea_telefonica_mail_str'),
+        pl.col('Cuenta').cast(pl.String).fill_null('').alias('Cuenta_str')
+    ])
+    
+    df = df.with_columns([
+        (pl.col('linea_telefonica_mail_str') + '_' + pl.col('Cuenta_str')).alias('llave')
+    ])
+    
+    if 'canal' not in df.columns:
+        df = df.with_columns(pl.lit('').alias('canal'))
+    
+    df_agente = df.filter(pl.col('canal') == 'AGENTE')
+    
+    otros_dfs = []
+    
+    for col in ['tipificacion', 'nombre_asesor']:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit('').alias(col))
+    
+    df_contestadas = df.filter(
+        (pl.col('canal') != 'AGENTE') & 
+        (pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada'))
+    )
+    if df_contestadas.height > 0:
+        otros_dfs.append(df_contestadas)
+    
+    df_blaster = df.filter(
+        (pl.col('canal') != 'AGENTE') & 
+        (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
+        (pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr'))
+    )
+    if df_blaster.height > 0:
+        otros_dfs.append(df_blaster)
+    
+    df_mensajeria = df.filter(
+        (pl.col('canal') != 'AGENTE') & 
+        (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr')) &
+        (pl.col('nombre_asesor').str.to_lowercase().str.contains('mensajer'))
+    )
+    if df_mensajeria.height > 0:
+        otros_dfs.append(df_mensajeria)
+    
+    df_correo = df.filter(
+        (pl.col('canal') != 'AGENTE') & 
+        (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('mensajer')) &
+        (pl.col('nombre_asesor').str.to_lowercase().str.contains('corre'))
+    )
+    if df_correo.height > 0:
+        otros_dfs.append(df_correo)
+    
+    df_resto = df.filter(
+        (pl.col('canal') != 'AGENTE') & 
+        (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('mensajer')) &
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('corre'))
+    )
+    if df_resto.height > 0:
+        otros_dfs.append(df_resto)
+    
+    llaves_procesadas = set(df_agente['llave'].to_list()) if df_agente.height > 0 else set()
+    dfs_a_combinar = [df_agente] if df_agente.height > 0 else []
+    
+    for otro_df in otros_dfs:
+        df_filtrado = otro_df.filter(~pl.col('llave').is_in(llaves_procesadas))
+        if df_filtrado.height > 0:
+            dfs_a_combinar.append(df_filtrado)
+            nuevas_llaves = set(df_filtrado['llave'].to_list())
+            llaves_procesadas.update(nuevas_llaves)
+    
+    if not dfs_a_combinar:
+        df_final_combinado = df
+    else:
+        df_final_combinado = pl.concat(dfs_a_combinar)
+    
+    monitor_keywords = ['blaster', 'ivr', 'mensajer', 'corre']
+    monitor_expr = pl.when(
+        pl.col('nombre_asesor').str.to_lowercase().str.contains_any(monitor_keywords)
+    ).then(
+        pl.lit('BM')
+    ).otherwise(
+        pl.lit('')
+    )
+    
+    df_final_combinado = df_final_combinado.with_columns([
+        monitor_expr.alias('monitor')
+    ])
+    
+    columnas_esperadas = [
+        'id_casa_cobranza', 'Cuenta', 'nombre_completo', 'edad_mora_asignada',
+        'hora_gestion', 'fecha_gestion', 'duracion_gestion', 'nombre_asesor',
+        'fecha_asignacion', 'tipificacion', 'motivo_no_pago', 'canal',
+        'monto_asignado', 'crm', 'segmento', 'contactado',
+        'linea_telefonica_mail', 'fecha_realizacion_promesa', 'fecha_compromiso_pago',
+        'llave', 'monitor'
+    ]
+    
+    for col in columnas_esperadas:
+        if col not in df_final_combinado.columns:
+            df_final_combinado = df_final_combinado.with_columns(pl.lit('').alias(col))
+    
+    df_final_combinado = df_final_combinado.select(columnas_esperadas)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_file = os.path.join(output_folder, f"reporte_unificado_con_llave_{timestamp}.csv")
+    
+    df_final_combinado.write_csv(output_file, separator=';')
+    
+    print(f"✅ Archivo unificado generado: {output_file}")
+    print(f"   📊 Total registros: {df_final_combinado.height:,}")
+    if df_agente.height > 0:
+        print(f"   🔹 Registros AGENTE: {df_agente.height:,}")
+        print(f"   🔹 Registros adicionales incorporados: {df_final_combinado.height - df_agente.height:,}")
+    
+    return f"✅ Archivo unificado guardado en: {output_file}"
