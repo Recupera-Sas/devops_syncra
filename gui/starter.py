@@ -2021,7 +2021,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa las asignaciones.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}----- Bases para BIG DATA ----"
+            folder_path_bg = f"{self.folder_path}---- Bases para BIG DATA ----"
             bigdata.data_ai.claro_structure_df(self.folder_path_IVR, folder_path_bg, self.partitions_FOLDER)
 
             Mbox_In_Process = QMessageBox() 
@@ -2053,7 +2053,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesan los demograficos.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}----- Bases para BIG DATA ----"
+            folder_path_bg = f"{self.folder_path}---- Bases para BIG DATA ----"
             bigdata.demos_ai.function_complete_demographic(self.folder_path_IVR, folder_path_bg, self.partitions_FOLDER, self.bigdatamonth, self.bigdatayear)
 
             Mbox_In_Process = QMessageBox() 
@@ -2085,7 +2085,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesan los toques por telematica.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}----- Bases para BIG DATA ----"
+            folder_path_bg = f"{self.folder_path}---- Bases para BIG DATA ----"
             bigdata.touch_ai.touch_dataframes_bd(self.folder_path_IVR, folder_path_bg, self.partitions_FOLDER, self.bigdatamonth, self.bigdatayear)
 
             Mbox_In_Process = QMessageBox() 
@@ -2117,7 +2117,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesan los Datasets de bigdata.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}----- Bases para BIG DATA ----"
+            folder_path_bg = f"{self.folder_path}---- Bases para BIG DATA ----"
             bigdata.union_datalakes_claro.read_compilation_datasets(self.folder_path_IVR, folder_path_bg, self.partitions_FOLDER, self.bigdatamonth, self.bigdatayear)
 
             Mbox_In_Process = QMessageBox() 
@@ -2148,7 +2148,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el blaster.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}----- Bases BLASTER ----"
+            folder_path_bg = f"{self.folder_path}---- Bases BLASTER ----"
             efecty_blaster.process_ivr_data(self.folder_path_IVR, folder_path_bg)
 
             Mbox_In_Process = QMessageBox() 
@@ -2217,8 +2217,8 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el reporte.")
             Mbox_In_Process.exec()
             
-            folder_path_bg = f"{self.folder_path}"
-            cruice_report_claro.report_claro_masive(self.folder_path_IVR, folder_path_bg)
+            folder_path_report = f"{self.folder_path}---- Bases para REPORTE CLARO ----"
+            cruice_report_claro.report_claro_masive(self.folder_path_IVR, folder_path_report)
 
             Mbox_In_Process = QMessageBox() 
             Mbox_In_Process.setWindowTitle("")

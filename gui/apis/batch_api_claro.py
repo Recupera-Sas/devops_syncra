@@ -19,18 +19,37 @@ def process_batch_files(input_path, output_path):
         
         if fname.endswith('.csv'):
             try:
-                with open(fpath, 'rb') as f:
-                    raw_data = f.read(10000)
-                    encoding = chardet.detect(raw_data)['encoding'] or 'latin-1'
+                try:
+                    with open(fpath, 'rb') as f:
+                        raw_data = f.read(10000)
+                        encoding = chardet.detect(raw_data)['encoding'] or 'latin-1'
+                except:
+                    encoding = 'latin-1'
                 
-                df_temp = pl.read_csv(
-                    fpath, 
-                    separator=';', 
-                    infer_schema_length=0, 
-                    ignore_errors=True, 
-                    truncate_ragged_lines=True,
-                    encoding=encoding
-                )
+                encodings_to_try = [encoding, 'utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8-sig']
+                
+                df_temp = None
+                for enc in encodings_to_try:
+                    try:
+                        df_temp = pl.read_csv(
+                            fpath, 
+                            separator=';', 
+                            infer_schema_length=0, 
+                            ignore_errors=True, 
+                            truncate_ragged_lines=True,
+                            encoding=enc
+                        )
+                        if len(df_temp.columns) > 1:
+                            break
+                    except:
+                        continue
+                
+                if df_temp is None:
+                    with open(fpath, 'r', encoding='latin-1', errors='ignore') as f:
+                        content = f.read()
+                    from io import StringIO
+                    df_temp = pl.read_csv(StringIO(content), separator=';', infer_schema_length=0, ignore_errors=True)
+                
                 cols = [c.strip() for c in df_temp.columns]
                 
                 if 'Multiproducto' in cols and 'Liquidacion' in cols:
@@ -185,7 +204,7 @@ def process_batch_files(input_path, output_path):
                         
                         if id_col and cuenta_col and dato_col:
                             res = df_email.select([
-                                pl.lit("Asunto: INFORMACION IMPORTANTE FACTURACION CLARO").alias('gestion'),
+                                (pl.lit("Asunto: INFORMACION IMPORTANTE FACTURACION CLARO") + pl.lit("|") + pl.col(dato_col).cast(pl.Utf8)).alias('gestion'),
                                 pl.lit("envios@recuperasas.com").alias('usuario'),
                                 pl.lit(fecha_base).alias('fechagestion'),
                                 pl.lit("Envio manual Syncra").alias('accion'),

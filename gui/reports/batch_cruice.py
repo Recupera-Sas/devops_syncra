@@ -86,27 +86,31 @@ def process_data(directory, output_directory, selected_columns, return_matches, 
 
 def cross_batch_campaign_claro(directory, output_directory, partitions):
     
-    print("🚀 Starting Cross Batch Campaign Claro...")
-    print("=" * 50)
-    
-    selected_columns = [
-        "gestion", "usuario", "fechagestion", "accion",
-        "perfil", "numeromarcado", "identificacion", "cuenta_promesa", "fecha_promesa",
-        "valor_promesa", "numero_cuotas"
-    ]
+    try:
+        print("🚀 Starting Cross Batch Campaign Claro...")
+        print("=" * 50)
+        
+        selected_columns = [
+            "gestion", "usuario", "fechagestion", "accion",
+            "perfil", "numeromarcado", "identificacion", "cuenta_promesa", "fecha_promesa",
+            "valor_promesa", "numero_cuotas"
+        ]
 
-    return_matches = True
-    join_column_original = "CRUCE"
-    join_column_cruce = "LLAVE"
+        return_matches = True
+        join_column_original = "CRUCE"
+        join_column_cruce = "LLAVE"
+        
+        print(f"⚙️  Configuration:")
+        print(f"   • Selected columns: {len(selected_columns)} columns")
+        print(f"   • Return matches: {return_matches}")
+        print(f"   • Join columns: {join_column_original} ↔ {join_column_cruce}")
+        print(f"   • Partitions: {partitions}")
+        print("=" * 50)
+        
+        process_data(directory, output_directory, selected_columns, return_matches, join_column_original, join_column_cruce, partitions)
+        
+        print("=" * 50)
+        print("🎉 Cross Batch Campaign Claro completed!")
     
-    print(f"⚙️  Configuration:")
-    print(f"   • Selected columns: {len(selected_columns)} columns")
-    print(f"   • Return matches: {return_matches}")
-    print(f"   • Join columns: {join_column_original} ↔ {join_column_cruce}")
-    print(f"   • Partitions: {partitions}")
-    print("=" * 50)
-    
-    process_data(directory, output_directory, selected_columns, return_matches, join_column_original, join_column_cruce, partitions)
-    
-    print("=" * 50)
-    print("🎉 Cross Batch Campaign Claro completed!")
+    except Exception as e:
+        print(f"❌ An error occurred: {str(e)}")
