@@ -5,17 +5,18 @@ from pyspark.sql.window import Window
 from pyspark.sql import SparkSession, SQLContext
 from pyspark.sql.types import StringType
 from pyspark.sql.functions import col, concat, lit, upper, regexp_replace, concat_ws, to_date, split, size
-from pyspark.sql.functions import expr, when, row_number, collect_list, length, datediff, current_date
+from pyspark.sql.functions import expr, when, row_number, collect_list, length, datediff, current_date, date_format
 from web.pyspark_session import get_spark_session
 from web.save_files import save_to_csv
  
 spark = None
 sqlContext = None
+
 def get_lazy_spark():
     """Inicializa Spark solo si no existe una sesión previa."""
     global spark, sqlContext
     if spark is None:
-        from pyspark.sql import SQLContext # Import local para optimizar
+        from pyspark.sql import SQLContext
         spark = get_spark_session()
         sqlContext = SQLContext(spark)
     return spark, sqlContext
@@ -30,7 +31,7 @@ def Function_Complete(path, output_directory, Partitions, Wallet_Brand, Origins_
     Data_Frame = First_Changes_DataFrame(path)
     Data_Frame = Phone_Data(Data_Frame)
 
-    BOT_list = ["IPCom", "WiseBot", "Atria"]
+    BOT_list = ["IPCom", "WiseBot", "Atria", "ChatbotService"]
 
     for Type_Proccess in BOT_list:
         BOT_Process(Data_Frame, Wallet_Brand, Origins_Filter, output_directory, \
@@ -41,8 +42,6 @@ def First_Changes_DataFrame(Root_Path):
     
     Data_Root = spark.read.csv(Root_Path, header= True, sep=";")
     DF = Data_Root.select([col(c).cast(StringType()).alias(c) for c in Data_Root.columns])
-    #DF = change_character_account(DF, "cuenta")
-    #DF = change_character_account(DF, "cuenta2")
 
     return DF
 
@@ -52,8 +51,7 @@ def change_character_account (Data_, Column):
     character_list = ["-"]
 
     for character in character_list:
-        Data_ = Data_.withColumn(Column, regexp_replace(col(Column), \
-        character, ""))
+        Data_ = Data_.withColumn(Column, regexp_replace(col(Column), character, ""))
 
     return Data_
 
@@ -65,6 +63,7 @@ def Renamed_Column(Data_Frame, Type_Proccess):
     Data_Frame = Data_Frame.withColumnRenamed("Tipo Base", "tipo base")
 
     print(f"Tipo base: {Type_Proccess}")
+    
     if Type_Proccess == "ServiceBots":
 
         Data_Frame = Data_Frame.withColumn(
@@ -148,6 +147,32 @@ def Renamed_Column(Data_Frame, Type_Proccess):
         
         Data_Frame = Data_Frame.select(columns_select)
         
+    elif Type_Proccess == "ChatbotService":
+        
+        Data_Frame = Data_Frame.withColumn(
+            "PRODUCTO",
+            when(col("origen") == "BSCS", "Linea Movil")
+            .when(col("origen") == "ASCARD", "Equipo")
+            .when(col("origen") == "RR", "Hogar")
+            .when(col("origen") == "SGA", "Negocios")
+            .otherwise(col("origen"))
+        )
+
+        Data_Frame = Data_Frame.withColumnRenamed("identificacion", "IDENTIFICACION")
+        Data_Frame = Data_Frame.withColumnRenamed("cuenta", "CUENTA")
+        Data_Frame = Data_Frame.withColumnRenamed("cuenta2", "CUENTA_REAL")
+        Data_Frame = Data_Frame.withColumnRenamed("nombrecompleto", "NOMBRE_CORREGIDO")
+        Data_Frame = Data_Frame.withColumnRenamed("NOMBRE CORTO", "NOMBRE_CORTO")
+        Data_Frame = Data_Frame.withColumnRenamed("Dato_Contacto", "TELEFONOS")
+        Data_Frame = Data_Frame.withColumnRenamed("Tipo Base", "TIPO_DE_BASE")
+        Data_Frame = Data_Frame.withColumnRenamed("MORA", "MORA")
+        Data_Frame = Data_Frame.withColumnRenamed("origen", "PRODUCTO_ORIGEN")
+        Data_Frame = Data_Frame.withColumnRenamed("referencia", "REFERENCIA")
+        Data_Frame = Data_Frame.withColumnRenamed("fecha_vencimiento", "FLP")
+        Data_Frame = Data_Frame.withColumnRenamed("descuento", "DESCUENTO")
+        Data_Frame = Data_Frame.withColumnRenamed("tipo_pago", "SEGMENTO")
+        Data_Frame = Data_Frame.withColumnRenamed("plan", "PLAN")
+        
     else:
         pass
     
@@ -165,8 +190,8 @@ def Save_Data_Frame (Data_Frame, Directory_to_Save, Type_Proccess, Partitions, d
 ### Dinamización de columnas de celulares
 def Phone_Data(Data_):
 
-    columns_to_stack_c = [f"celular{i}" for i in range(1, 11)]
-    columns_to_stack_f = [f"fijo{i}" for i in range(1, 4)]
+    columns_to_stack_c = [f"celular{i}" for i in range(1, 15)]  # Hasta celular14
+    columns_to_stack_f = [f"fijo{i}" for i in range(1, 8)]      # Hasta fijo7
     columns_to_stack = columns_to_stack_f + columns_to_stack_c
     
     columns_to_drop = columns_to_stack
@@ -266,7 +291,7 @@ def WiseBot(RDD, Type_Proccess):
     now = datetime.now()
     Day = now.strftime("%Y-%m-%d")
 
-    RDD = RDD. withColumn("FECHA PLAZO", lit(f"{Day}"))
+    RDD = RDD.withColumn("FECHA PLAZO", lit(f"{Day}"))
     RDD = Renamed_Column(RDD, Type_Proccess)
 
     return RDD
@@ -372,7 +397,124 @@ def Atria(RDD, Type_Proccess):
     now = datetime.now()
     Day = now.strftime("%Y-%m-%d")
 
-    RDD = RDD. withColumn("FECHA PLAZO", lit(f"{Day}"))
+    RDD = RDD.withColumn("FECHA PLAZO", lit(f"{Day}"))
+    RDD = Renamed_Column(RDD, Type_Proccess)
+
+    return RDD
+
+def ChatbotService(RDD, Type_Proccess):
+    
+    RDD = RDD.withColumn("name_function", split(col("nombrecompleto"), " "))
+    RDD = RDD.withColumn("len_name_function", size(col("name_function")))
+    
+    RDD = RDD.withColumn(
+        "nombrecompleto",
+        when(col("len_name_function") % 2 == 0,
+            expr("slice(name_function, 1, len_name_function / 2)"))
+        .otherwise(expr("slice(name_function, 1, (len_name_function / 2) + 1)"))
+    )
+    
+    RDD = RDD.withColumn(
+        "APELLIDO COMPLETO",
+        when(col("len_name_function") % 2 == 0,
+            expr("slice(name_function, len_name_function / 2 + 1, len_name_function)"))
+        .otherwise(expr("slice(name_function, (len_name_function / 2) + 1, len_name_function)"))
+    )
+    
+    RDD = RDD.withColumn("nombrecompleto", concat_ws(" ", col("nombrecompleto")))
+    RDD = RDD.withColumn("APELLIDO COMPLETO", concat_ws(" ", col("APELLIDO COMPLETO")))
+    
+    # Generar UUID usando expr
+    RDD = RDD.withColumn("UUID", expr("uuid()"))
+    
+    # Aplicar descuento para calcular VALOR_DE_PAGAR
+    RDD = RDD.withColumn(
+        "VALOR_DE_PAGAR", 
+        when((col("descuento") == "0%") | (col("descuento").isNull()) | (col("descuento") == "N/A"), col("Mod_init_cta"))
+        .otherwise(col("Mod_init_cta") * (1 - col("descuento") / 100)))
+    
+    Price_Col = "VALOR_DE_PAGAR"
+
+    RDD = RDD.withColumn("cuenta", col("cuenta").cast("string"))
+    
+    RDD = RDD.withColumn(f"{Price_Col}", col(f"{Price_Col}").cast("double").cast("int"))
+    RDD = RDD.withColumn("Mod_init_cta", col("Mod_init_cta").cast("double").cast("int"))
+    
+    for col_name, data_type in RDD.dtypes:
+        if data_type == "double":
+            RDD = RDD.withColumn(col_name, col(col_name).cast(StringType()))
+
+    RDD = RDD.dropDuplicates(["Cruce_Cuentas"])
+
+    # Obtener fechas
+    now = datetime.now()
+    Day = now.strftime("%Y%m%d")
+    Day_fmt = now.strftime("%Y-%m-%d")
+    Hour = now.strftime("%H:%M")
+    
+    # Calcular DIASMORA (días desde FLP hasta hoy)
+    RDD = RDD.withColumn("DIASMORA", datediff(current_date(), col("fecha_vencimiento")))
+    
+    # Crear las columnas necesarias
+    RDD = RDD.withColumn("IDENTIFICACION", col("identificacion"))
+    RDD = RDD.withColumn("CUENTA", col("cuenta"))
+    RDD = RDD.withColumn("CUENTA_REAL", col("cuenta2"))
+    RDD = RDD.withColumn("NOMBRE_CORREGIDO", col("nombrecompleto"))
+    RDD = RDD.withColumn("NOMBRE_CORTO", col("NOMBRE CORTO"))
+    RDD = RDD.withColumn("TELEFONOS", col("Dato_Contacto"))
+    RDD = RDD.withColumn("TIPO_DE_BASE", col("Tipo Base"))
+    RDD = RDD.withColumn("MORA", col("marca"))
+    RDD = RDD.withColumn("PRODUCTO", col("origen"))
+    RDD = RDD.withColumn("REFERENCIA", col("referencia"))
+    RDD = RDD.withColumn("FLP", col("fecha_vencimiento"))
+    RDD = RDD.withColumn("DESCUENTO", col("descuento"))
+    RDD = RDD.withColumn("monto_inicial", col("Mod_init_cta"))
+    RDD = RDD.withColumn(f"{Price_Col}", col(f"{Price_Col}"))
+    RDD = RDD.withColumn("SEGMENTO", col("tipo_pago"))
+    RDD = RDD.withColumn("FECHA_EJECUCION", lit(Day_fmt))
+    RDD = RDD.withColumn("HORA_EJECUCION", lit(Hour))
+    RDD = RDD.withColumn("REQUEST_ID", col("UUID"))
+    RDD = RDD.withColumn("PLAN", col("plan"))
+    
+    # Calcular RANGO_DEUDA basado en monto_inicial
+    RDD = RDD.withColumn("RANGO_DEUDA", 
+        when(col("monto_inicial") <= 20000, lit("1 MENOS $20.000"))
+        .when(col("monto_inicial") <= 50000, lit("2 ENTRE $20.000 y $50.000"))
+        .when(col("monto_inicial") <= 100000, lit("3 ENTRE $50.000 y $100.000"))
+        .when(col("monto_inicial") <= 150000, lit("4 ENTRE $100.000 y $150.000"))
+        .when(col("monto_inicial") <= 200000, lit("5 ENTRE $150.000 y $200.000"))
+        .when(col("monto_inicial") <= 300000, lit("6 ENTRE $200.000 y $300.000"))
+        .when(col("monto_inicial") <= 500000, lit("7 ENTRE $300.000 y $500.000"))
+        .when(col("monto_inicial") <= 1000000, lit("8 ENTRE $500.000 y $1.000.000"))
+        .when(col("monto_inicial") <= 2000000, lit("9 ENTRE $1.000.000 y $2.000.000"))
+        .otherwise(lit("10 MAYOR $2.000.000")))
+    
+    # Calcular RANGO_PAGO basado en VALOR_DE_PAGAR
+    RDD = RDD.withColumn("RANGO_PAGO", 
+        when(col(Price_Col) <= 20000, lit("1 MENOS $20.000"))
+        .when(col(Price_Col) <= 50000, lit("2 ENTRE $20.000 y $50.000"))
+        .when(col(Price_Col) <= 100000, lit("3 ENTRE $50.000 y $100.000"))
+        .when(col(Price_Col) <= 150000, lit("4 ENTRE $100.000 y $150.000"))
+        .when(col(Price_Col) <= 200000, lit("5 ENTRE $150.000 y $200.000"))
+        .when(col(Price_Col) <= 300000, lit("6 ENTRE $200.000 y $300.000"))
+        .when(col(Price_Col) <= 500000, lit("7 ENTRE $300.000 y $500.000"))
+        .when(col(Price_Col) <= 1000000, lit("8 ENTRE $500.000 y $1.000.000"))
+        .when(col(Price_Col) <= 2000000, lit("9 ENTRE $1.000.000 y $2.000.000"))
+        .otherwise(lit("10 MAYOR $2.000.000")))
+    
+    # VALOR_PAGO es el mismo que VALOR_DE_PAGAR
+    RDD = RDD.withColumn("VALOR_PAGO", col(Price_Col))
+    
+    # Seleccionar columnas en el orden solicitado
+    RDD = RDD.select(
+        "IDENTIFICACION", "CUENTA", "CUENTA_REAL", "NOMBRE_CORREGIDO", "NOMBRE_CORTO",
+        "DIASMORA", "TELEFONOS", "TIPO_DE_BASE", "MORA", "PRODUCTO", "REFERENCIA", "FLP",
+        "DESCUENTO", "monto_inicial", Price_Col, "RANGO_DEUDA", "RANGO_PAGO",
+        "VALOR_PAGO", "SEGMENTO", "FECHA_EJECUCION", "HORA_EJECUCION", "REQUEST_ID", "PLAN"
+    )
+    
+    RDD = RDD.sort(col("IDENTIFICACION"), col("CUENTA"))
+    
     RDD = Renamed_Column(RDD, Type_Proccess)
 
     return RDD
@@ -386,7 +528,6 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
     Data_ = Data_.filter((col("tipo_pago").isin(filter_cash)) | (col("tipo_pago").isNull()) | (col("tipo_pago") == ""))
     
     Data_ = Data_.withColumn("NOMBRE CORTO", col("nombrecompleto"))
-
     Data_ = Data_.withColumn("NOMBRE CORTO", split(col("NOMBRE CORTO"), " "))
     
     print(Data_["NOMBRE CORTO"].dtype)
@@ -405,7 +546,6 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
         when((col("descuento") == "0%") | (col("descuento").isNull()) | (col("descuento") == "N/A"), col("Mod_init_cta"))
         .otherwise(col("Mod_init_cta") * (1 - col("descuento") / 100)))
     
-
     Data_ = Data_.filter(col("marca").isin(Wallet_Brand))
     Data_ = Data_.filter(col("origen").isin(Origins_Filter))
     
@@ -417,19 +557,29 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
     windowSpec = Window.partitionBy("identificacion").orderBy("cuenta","Dato_Contacto")
     Data_ = Data_.withColumn("Filtro", row_number().over(windowSpec))    
 
+    Day = None
+    
     if Type_Proccess == "IPCom":
         delimiter = ","
         Data_ = IPCom(Data_, Type_Proccess)
+        Type_Proccess = "BD Claro VOICEBOTS IPCom"
 
     elif Type_Proccess == "Atria":
         delimiter = ";"
         Data_ = Atria(Data_, Type_Proccess)
+        Type_Proccess = "BD Claro VOICEBOTS Atria"
+        
+    elif Type_Proccess == "ChatbotService":
+        delimiter = ";"
+        now = datetime.now()
+        Day = now.strftime("%Y%m%d")
+        Type_Proccess = f"BD Claro CHATBOT Service {Day} 1"
+        Data_ = ChatbotService(Data_, Type_Proccess)
 
     else:
         delimiter = ";"
         Data_ = WiseBot(Data_, Type_Proccess)
-    
-    Type_Proccess = f"BD Claro BOT {Type_Proccess}"
+        Type_Proccess = "BD Claro VOICEBOTS WiseBot"
     
     Save_Data_Frame(Data_, Directory_to_Save, Type_Proccess, Partitions, delimiter)
     
@@ -473,10 +623,8 @@ def Function_Filter(RDD, Dates, Benefits, Contacts_Min, Value_Min, Value_Max):
     
     if Benefits == "Con Descuento":
         RDD = RDD.filter(col("DTO_Filter") == "Con Descuento")
-
     elif Benefits == "Sin Descuento":
         RDD = RDD.filter(col("DTO_Filter") == "Sin Descuento")
-
     else:
         RDD = RDD
 
