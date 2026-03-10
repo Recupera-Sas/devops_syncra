@@ -31,7 +31,7 @@ def Function_Complete(path, output_directory, Partitions, Wallet_Brand, Origins_
     Data_Frame = First_Changes_DataFrame(path)
     Data_Frame = Phone_Data(Data_Frame)
 
-    BOT_list = ["IPCom", "WiseBot", "Atria", "IAGENWiseBot"]  # Cambiado de ChatbotService a IAGENWiseBot
+    BOT_list = ["IPCom", "WiseBot", "Atria", "IAGENWiseBot", "IAGENServiceBots"]  # Añadido IAGENServiceBots
 
     for Type_Proccess in BOT_list:
         BOT_Process(Data_Frame, Wallet_Brand, Origins_Filter, output_directory, \
@@ -68,7 +68,7 @@ def Renamed_Column(Data_Frame, Type_Proccess):
 
         Data_Frame = Data_Frame.withColumn(
             "origen",
-            when(col("origen") == "BSCS", "Linea Movil")
+            when(col("origen") == "BSCS", "Postpago")
             .when(col("origen") == "ASCARD", "Equipo")
             .when(col("origen") == "RR", "Hogar")
             .when(col("origen") == "SGA", "Negocios")
@@ -147,34 +147,9 @@ def Renamed_Column(Data_Frame, Type_Proccess):
         
         Data_Frame = Data_Frame.select(columns_select)
         
-    elif Type_Proccess == "IAGENWiseBot":  # Cambiado de ChatbotService a IAGENWiseBot
-        
-        Data_Frame = Data_Frame.withColumn(
-            "PRODUCTO",
-            when(col("origen") == "BSCS", "Linea Movil")
-            .when(col("origen") == "ASCARD", "Equipo")
-            .when(col("origen") == "RR", "Hogar")
-            .when(col("origen") == "SGA", "Negocios")
-            .otherwise(col("origen"))
-        )
-
-        Data_Frame = Data_Frame.withColumnRenamed("identificacion", "IDENTIFICACION")
-        Data_Frame = Data_Frame.withColumnRenamed("cuenta", "CUENTA")
-        Data_Frame = Data_Frame.withColumnRenamed("cuenta2", "CUENTA_REAL")
-        Data_Frame = Data_Frame.withColumnRenamed("nombrecompleto", "NOMBRE_CORREGIDO")
-        Data_Frame = Data_Frame.withColumnRenamed("NOMBRE CORTO", "NOMBRE_CORTO")
-        Data_Frame = Data_Frame.withColumnRenamed("Dato_Contacto", "TELEFONOS")
-        Data_Frame = Data_Frame.withColumnRenamed("Tipo Base", "TIPO_DE_BASE")
-        Data_Frame = Data_Frame.withColumnRenamed("MORA", "MORA")
-        Data_Frame = Data_Frame.withColumnRenamed("origen", "PRODUCTO_ORIGEN")
-        Data_Frame = Data_Frame.withColumnRenamed("referencia", "REFERENCIA")
-        Data_Frame = Data_Frame.withColumnRenamed("fecha_vencimiento", "FLP")
-        Data_Frame = Data_Frame.withColumnRenamed("descuento", "DESCUENTO")
-        Data_Frame = Data_Frame.withColumnRenamed("tipo_pago", "SEGMENTO")
-        Data_Frame = Data_Frame.withColumnRenamed("plan", "PLAN")
         
     else:
-        pass
+        print("\n❌ No aplica homologación: ", Type_Proccess, "\n")
     
     return Data_Frame
 
@@ -402,7 +377,7 @@ def Atria(RDD, Type_Proccess):
 
     return RDD
 
-def IAGENWiseBot(RDD, Type_Proccess):  # Cambiado de ChatbotService a IAGENWiseBot
+def IAGENWiseBot(RDD, Type_Proccess):
     
     RDD = RDD.withColumn("name_function", split(col("nombrecompleto"), " "))
     RDD = RDD.withColumn("len_name_function", size(col("name_function")))
@@ -475,6 +450,15 @@ def IAGENWiseBot(RDD, Type_Proccess):  # Cambiado de ChatbotService a IAGENWiseB
     RDD = RDD.withColumn("HORA_EJECUCION", lit(Hour))
     RDD = RDD.withColumn("REQUEST_ID", col("UUID"))
     RDD = RDD.withColumn("PLAN", col("plan"))
+
+    RDD = RDD.withColumn(
+        "PRODUCTO",
+        when(col("PRODUCTO") == "BSCS", "Postpago")
+        .when(col("PRODUCTO") == "ASCARD", "Equipo")
+        .when(col("PRODUCTO") == "RR", "Hogar")
+        .when(col("PRODUCTO") == "SGA", "Negocios")
+        .otherwise(lit("error"))
+    )
     
     # Calcular RANGO_DEUDA basado en monto_inicial
     RDD = RDD.withColumn("RANGO_DEUDA", 
@@ -514,6 +498,64 @@ def IAGENWiseBot(RDD, Type_Proccess):  # Cambiado de ChatbotService a IAGENWiseB
     )
     
     RDD = RDD.sort(col("IDENTIFICACION"), col("CUENTA"))
+    
+    RDD = Renamed_Column(RDD, Type_Proccess)
+
+    return RDD
+
+def IAGENServiceBots(RDD, Type_Proccess):  # Nueva función para IAGEN Servicebots
+    
+    # Aplicar descuento si existe
+    RDD = RDD.withColumn(
+        "VALOR_PAGO", 
+        when((col("descuento") == "0%") | (col("descuento").isNull()) | (col("descuento") == "N/A"), col("Mod_init_cta"))
+        .otherwise(col("Mod_init_cta") * (1 - col("descuento") / 100)))
+    
+    RDD = RDD.withColumn("cuenta", col("cuenta").cast("string"))
+    
+    RDD = RDD.withColumn("VALOR_PAGO", col("VALOR_PAGO").cast("double").cast("int"))
+    RDD = RDD.withColumn("Mod_init_cta", col("Mod_init_cta").cast("double").cast("int"))
+    
+    for col_name, data_type in RDD.dtypes:
+        if data_type == "double":
+            RDD = RDD.withColumn(col_name, col(col_name).cast(StringType()))
+
+    RDD = RDD.dropDuplicates(["Cruce_Cuentas"])
+    
+    # Crear las columnas según la estructura solicitada
+    RDD = RDD.withColumn("param_identification_concat", concat(col("identificacion"), lit("-"), col("cuenta"), col("marca")))
+    RDD = RDD.withColumn("param_full_name", col("nombrecompleto"))
+    RDD = RDD.withColumn("param_company", lit("Claro"))
+    RDD = RDD.withColumn("param_product", 
+        when(col("origen") == "BSCS", "Postpago")
+        .when(col("origen") == "ASCARD", "Equipo")
+        .when(col("origen") == "RR", "Hogar")
+        .when(col("origen") == "SGA", "Negocios")
+        .otherwise(col("origen"))
+    )
+    RDD = RDD.withColumn("param_category", col("plan"))
+    RDD = RDD.withColumn("param_balance", col("VALOR_PAGO"))
+    RDD = RDD.withColumn("param_minimum_payment", col("VALOR_PAGO"))
+    RDD = RDD.withColumn("to_phone", col("Dato_Contacto"))
+    RDD = RDD.withColumn("param_text_one", 
+        when((col("descuento") == "0%") | (col("descuento").isNull()) | (col("descuento") == "N/A") | (col("descuento") == "0"), lit("sin beneficio"))
+        .otherwise(lit("con beneficio"))
+    )
+    
+    # Seleccionar solo las columnas necesarias en el orden correcto
+    RDD = RDD.select(
+        "param_identification_concat",
+        "param_full_name",
+        "param_company",
+        "param_product",
+        "param_category",
+        "param_balance",
+        "param_minimum_payment",
+        "to_phone",
+        "param_text_one"
+    )
+    
+    RDD = RDD.sort(col("param_full_name"))
     
     RDD = Renamed_Column(RDD, Type_Proccess)
 
@@ -575,6 +617,20 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
         Day = now.strftime("%Y%m%d")
         Type_Proccess = f"BD Claro IAGEN WiseBot"  
         Data_ = IAGENWiseBot(Data_, Type_Proccess)
+
+        Save_Data_Frame(Data_, Directory_to_Save, Type_Proccess, Partitions, delimiter)
+
+        delimiter = ";"
+        now = datetime.now()
+        Day = now.strftime("%Y%m%d")
+        Type_Proccess = f"BD Claro IAGEN Atria"  
+        
+    elif Type_Proccess == "IAGENServiceBots":  # Nuevo caso para IAGEN Servicebots
+        delimiter = ";"
+        now = datetime.now()
+        Day = now.strftime("%Y%m%d")
+        Type_Proccess = f"BD Claro IAGEN Servicebots"
+        Data_ = IAGENServiceBots(Data_, Type_Proccess)
 
     else:
         delimiter = ";"
