@@ -573,7 +573,7 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
         delimiter = ";"
         now = datetime.now()
         Day = now.strftime("%Y%m%d")
-        Type_Proccess = f"BD Claro IAGEN WiseBot {Day} 1"  
+        Type_Proccess = f"BD Claro IAGEN WiseBot"  
         Data_ = IAGENWiseBot(Data_, Type_Proccess)
 
     else:
