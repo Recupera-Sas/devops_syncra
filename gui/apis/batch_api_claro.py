@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import re
 import chardet
+import random
 from datetime import datetime
 from ..apis.upload_batch import upload_batch_file
 
@@ -19,9 +20,12 @@ def process_batch_files(input_path, output_path):
         
         if fname.endswith('.csv'):
             try:
-                with open(fpath, 'rb') as f:
-                    raw_data = f.read(10000)
-                    encoding = chardet.detect(raw_data)['encoding'] or 'latin-1'
+                try:
+                    with open(fpath, 'rb') as f:
+                        raw_data = f.read(10000)
+                        encoding = chardet.detect(raw_data)['encoding'] or 'latin-1'
+                except:
+                    encoding = 'latin-1'
                 
                 encodings_to_try = [encoding, 'utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8-sig']
                 
@@ -68,62 +72,6 @@ def process_batch_files(input_path, output_path):
     final_dfs = []
     status_map = {'ANSWERED': 'CONTESTADA', 'NO ANSWER': 'NO CONTESTA', 'BUZON': 'BUZON DE VOZ', 'BUSY': 'OCUPADO', 'FAILED': 'FALLIDA'}
 
-    def normalize_column_names(df):
-        column_mapping = {}
-        used_names = set()
-        
-        for col in df.columns:
-            col_lower = col.lower().strip()
-            new_name = None
-            
-            if any(x in col_lower for x in ['identificacion', 'documento', 'identificación']):
-                new_name = 'identificacion'
-            elif 'cuenta_next' in col_lower:
-                new_name = 'cuenta_next'
-            elif any(x in col_lower for x in ['cuenta_promesa', 'cuenta', 'referencia']):
-                new_name = 'cuenta_promesa'
-            elif 'dato_contacto' in col_lower:
-                new_name = 'dato_contacto'
-            elif any(x in col_lower for x in ['celular', 'numero', 'telefono', 'cel']):
-                new_name = 'celular'
-            elif any(x in col_lower for x in ['fecha_inicio', 'fecha inicio']):
-                new_name = 'fecha_inicio_llamada'
-            elif any(x in col_lower for x in ['fecha_fin', 'fecha fin']):
-                new_name = 'fecha_fin_llamada'
-            elif 'resultado' in col_lower and 'llamada' in col_lower:
-                new_name = 'resultado_llamada'
-            elif any(x in col_lower for x in ['segundo', 'duracion', 'seconds', 'secs', 'secound']):
-                new_name = 'segundos'
-            elif any(x in col_lower for x in ['mejor_marcacion', 'mejor marcacion']):
-                new_name = 'mejor_marcacion'
-            elif 'estado' in col_lower:
-                new_name = 'estado'
-            elif 'nombre_campana' in col_lower:
-                new_name = 'nombre_campana'
-            elif 'duracion' in col_lower:
-                new_name = 'duracion'
-            elif 'canal' in col_lower:
-                new_name = 'canal'
-            elif any(x in col_lower for x in ['email', 'correo']):
-                new_name = 'email'
-            elif any(x in col_lower for x in ['texto', 'mensaje', 'sms']):
-                new_name = 'texto'
-            elif 'numero marcado' in col_lower:
-                new_name = 'numero_marcado'
-            
-            if new_name:
-                if new_name in used_names:
-                    count = 1
-                    while f"{new_name}_{count}" in used_names:
-                        count += 1
-                    new_name = f"{new_name}_{count}"
-                column_mapping[col] = new_name
-                used_names.add(new_name)
-            else:
-                column_mapping[col] = col_lower.replace(' ', '_')
-        
-        return df.rename(column_mapping)
-
     def safe_read_csv(fpath):
         encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8-sig']
         separators = [';', ',', '\t', '|']
@@ -149,11 +97,18 @@ def process_batch_files(input_path, output_path):
                         encoding=enc
                     )
                     if len(df.columns) > 1:
-                        df.columns = [str(c).strip() for c in df.columns]
                         return df
                 except:
                     continue
-        return None
+        
+        try:
+            with open(fpath, 'r', encoding='latin-1', errors='ignore') as f:
+                content = f.read()
+            from io import StringIO
+            df = pl.read_csv(StringIO(content), separator=';', infer_schema_length=0, ignore_errors=True)
+            return df
+        except:
+            return None
 
     def format_datetime_with_T(dt_str):
         if not dt_str or pd.isna(dt_str):
@@ -196,35 +151,19 @@ def process_batch_files(input_path, output_path):
         except:
             pass
         
-        return dt_str
+        return None
 
-    def format_segundos(seg_val):
-        if seg_val is None or pd.isna(seg_val):
-            return "0"
-        
-        seg_str = str(seg_val).strip()
-        if not seg_str:
-            return "0"
-        
-        if ':' in seg_str:
-            try:
-                parts = seg_str.split(':')
-                if len(parts) == 3:
-                    hours, minutes, seconds = parts
-                    total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(float(seconds))
-                    return str(total_seconds)
-                elif len(parts) == 2:
-                    minutes, seconds = parts
-                    total_seconds = int(minutes) * 60 + int(float(seconds))
-                    return str(total_seconds)
-            except:
-                pass
-        
+    def get_random_date_from_column(df, date_column):
+        """Obtiene una fecha aleatoria de una columna del DataFrame"""
         try:
-            num_val = float(seg_str)
-            return str(int(num_val))
-        except:
-            return "0"
+            if date_column in df.columns:
+                valid_dates = df.filter(pl.col(date_column).is_not_null()).select(date_column).to_series()
+                if len(valid_dates) > 0:
+                    random_date = random.choice(valid_dates.to_list())
+                    return format_datetime_with_T(random_date)
+        except Exception as e:
+            print(f"⚠️ Error getting random date: {e}")
+        return None
 
     def extract_date_from_filename(fname):
         date_match = re.search(r'(\d{8})', fname)
@@ -234,18 +173,44 @@ def process_batch_files(input_path, output_path):
                 dt_obj = datetime.strptime(date_str, '%d%m%Y')
                 return dt_obj.strftime('%Y-%m-%dT11:00:00')
             except:
-                try:
-                    dt_obj = datetime.strptime(date_str, '%Y%m%d')
-                    return dt_obj.strftime('%Y-%m-%dT11:00:00')
-                except:
-                    pass
-        return datetime.now().strftime('%Y-%m-%dT11:00:00')
+                pass
+        return None
 
     def safe_get_column(df, possible_names):
         for name in possible_names:
             if name in df.columns:
                 return name
         return None
+
+    def format_seconds(seconds_value):
+        """
+        Formatea los segundos que pueden venir en diferentes formatos:
+        - Números con .0 (ej: 14.0)
+        - Números sin decimales (ej: 14)
+        - Formato HH:MM:SS (ej: 00:00:14)
+        """
+        if seconds_value is None or pd.isna(seconds_value):
+            return "0"
+        
+        seconds_str = str(seconds_value).strip()
+        if not seconds_str:
+            return "0"
+        
+        try:
+            seconds_float = float(seconds_str)
+            return str(int(seconds_float))
+        except ValueError:
+            pass
+        
+        time_pattern = re.match(r'^(\d{1,2}):(\d{2}):(\d{2})$', seconds_str)
+        if time_pattern:
+            hours = int(time_pattern.group(1))
+            minutes = int(time_pattern.group(2))
+            seconds = int(time_pattern.group(3))
+            total_seconds = hours * 3600 + minutes * 60 + seconds
+            return str(total_seconds)
+        
+        return seconds_str
 
     for fname in data_payloads:
         fpath = os.path.join(input_path, fname)
@@ -255,32 +220,39 @@ def process_batch_files(input_path, output_path):
             if fname.endswith('.xlsx'):
                 try:
                     df = pl.from_pandas(pd.read_excel(fpath))
-                    df.columns = [str(c).strip() for c in df.columns]
                 except:
                     print(f"⚠️ Could not read Excel {fname}, skipping")
                     continue
             else:
                 df = safe_read_csv(fpath)
                 if df is None:
-                    print(f"⚠️ Could not read {fname}, skipping")
+                    print(f"⚠️ Could not read {fname} with any encoding/separator, skipping")
                     continue
 
-            df = normalize_column_names(df)
+            df.columns = [str(c).strip() for c in df.columns]
             cols = df.columns
             res = None
             conditional = "Unknown"
 
-            if es_email_file and 'canal' in cols:
+            if es_email_file and 'Canal' in cols:
                 try:
                     fecha_base = extract_date_from_filename(fname)
-                    df_email = df.filter(pl.col('canal').cast(pl.Utf8).str.to_uppercase() == 'EMAIL')
+                    if fecha_base is None:
+                        fecha_col = safe_get_column(df, ['FECHA', 'Fecha', 'fecha', 'DATE', 'Date', 'date'])
+                        if fecha_col:
+                            fecha_base = get_random_date_from_column(df, fecha_col)
+                        else:
+                            print(f"⚠️ No se pudo determinar fecha para EMAIL en {fname}, omitiendo")
+                            continue
+                    
+                    df_email = df.filter(pl.col('Canal').cast(pl.Utf8).str.to_uppercase() == 'EMAIL')
                     
                     if df_email.height > 0:
-                        id_col = safe_get_column(df_email, ['identificacion'])
-                        cuenta_col = safe_get_column(df_email, ['cuenta_promesa', 'cuenta_next'])
-                        dato_col = safe_get_column(df_email, ['dato_contacto', 'email'])
+                        id_col = safe_get_column(df_email, ['identificacion', 'Identificacion', 'IDENTIFICACION', 'Documento', 'documento', 'DOCUMENTO'])
+                        cuenta_col = safe_get_column(df_email, ['Cuenta', 'cuenta', 'CUENTA', 'Referencia', 'referencia', 'REFERENCIA', 'Cuenta_Next'])
+                        dato_col = safe_get_column(df_email, ['Dato_Contacto', 'dato_contacto', 'DATOCONTACTO', 'Email', 'email', 'EMAIL'])
                         
-                        if id_col and cuenta_col and dato_col:
+                        if id_col and cuenta_col and dato_col and fecha_base:
                             res = df_email.select([
                                 (pl.lit("Asunto: INFORMACION IMPORTANTE FACTURACION CLARO") + pl.lit("|") + pl.col(dato_col).cast(pl.Utf8)).alias('gestion'),
                                 pl.lit("envios@recuperasas.com").alias('usuario'),
@@ -293,28 +265,38 @@ def process_batch_files(input_path, output_path):
                                 pl.lit("claro").alias('campana')
                             ])
                             conditional = "CORREO MASIVIAN"
+                            print(f"   📊 EMAIL records found: {df_email.height}")
                 except Exception as e:
                     print(f"⚠️ Error in EMAIL processing for {fname}: {e}")
 
-            if res is None and 'texto' in cols and 'dato_contacto' in cols:
+            if res is None and 'SMS' in cols and 'Dato_Contacto' in cols:
                 try:
                     date_match = re.search(r'(\d{8})_(\d{4})', fname)
-                    dt_str = extract_date_from_filename(fname) if not date_match else datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+                    dt_str = None
+                    if date_match:
+                        try:
+                            dt_obj = datetime.strptime(date_match.group(0), '%d%m%Y_%H%M')
+                            dt_str = dt_obj.strftime('%Y-%m-%dT%H:%M:%S')
+                        except:
+                            dt_str = None
                     
-                    cuenta_col = safe_get_column(df, ['cuenta_promesa', 'cuenta_next'])
-                    if not cuenta_col:
-                        cuenta_col = 'cuenta_promesa'
-                        df = df.with_columns(pl.lit("").alias('cuenta_promesa'))
+                    if dt_str is None:
+                        fecha_col = safe_get_column(df, ['FECHA', 'Fecha', 'fecha', 'DATE', 'Date', 'date'])
+                        if fecha_col:
+                            dt_str = get_random_date_from_column(df, fecha_col)
+                        else:
+                            print(f"⚠️ No se pudo determinar fecha para SMS en {fname}, omitiendo")
+                            continue
                     
                     res = df.select([
-                        pl.col('texto').cast(pl.Utf8).alias('gestion'),
+                        pl.col('SMS').cast(pl.Utf8).alias('gestion'),
                         pl.lit("87910__anthony.quiva239").alias('usuario'),
                         pl.lit(dt_str).alias('fechagestion'),
                         pl.lit("Envio manual Syncra").alias('accion'),
                         pl.lit("MENSAJERIA SAEM").alias('perfil'),
-                        pl.col('dato_contacto').cast(pl.Utf8).alias('demografico'),
-                        pl.col('identificacion').cast(pl.Utf8).alias('identificacion'),
-                        (pl.col(cuenta_col).cast(pl.Utf8) + "-").alias('cuenta_promesa'),
+                        pl.col('Dato_Contacto').cast(pl.Utf8).alias('demografico'),
+                        pl.col('Identificacion').cast(pl.Utf8).alias('identificacion'),
+                        (pl.col("Cuenta_Next").cast(pl.Utf8) + "-").alias('cuenta_promesa'),
                         pl.lit("claro").alias('campana')
                     ])
                     conditional = "SMS Saem"
@@ -323,72 +305,104 @@ def process_batch_files(input_path, output_path):
 
             if res is None and mapping_df is not None:
                 try:
-                    id_col = safe_get_column(df, ['identificacion'])
+                    id_col = safe_get_column(df, ['IDENTIFICACION', 'Identificacion', 'Identificación', 'identificacion'])
                     if id_col:
                         df = df.with_columns(pl.col(id_col).cast(pl.Utf8).str.strip_chars())
                         joined = df.join(mapping_df, left_on=id_col, right_on='Cuenta_Next', how='inner')
                         
                         if not joined.is_empty():
-                            if 'estado' in cols:
-                                fecha_col = safe_get_column(joined, ['fecha_inicio_llamada'])
-                                fecha_formateada = joined[fecha_col].map_elements(format_datetime_with_T, return_dtype=pl.Utf8) if fecha_col else pl.lit(datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
+                            if 'ESTADO' in cols:
+                                fecha_col = 'FECHA DE MARCACION'
+                                fecha_formateada = None
                                 
-                                nombre_campana_col = safe_get_column(joined, ['nombre_campana']) or 'nombre_campana'
-                                if nombre_campana_col not in joined.columns:
-                                    joined = joined.with_columns(pl.lit("BLASTER").alias('nombre_campana'))
+                                if fecha_col in joined.columns:
+                                    fecha_formateada = joined[fecha_col].map_elements(
+                                        format_datetime_with_T, return_dtype=pl.Utf8
+                                    )
                                 
-                                segundos_col = safe_get_column(joined, ['segundos', 'duracion'])
-                                segundos_formateados = joined[segundos_col].map_elements(format_segundos, return_dtype=pl.Utf8) if segundos_col else pl.lit("0")
+                                if fecha_formateada is not None and fecha_formateada.null_count() > 0:
+                                    random_date = get_random_date_from_column(joined, fecha_col)
+                                    if random_date:
+                                        fecha_formateada = fecha_formateada.fill_null(random_date)
+                                    else:
+                                        print(f"⚠️ No hay fechas válidas en {fname} para Blaster, omitiendo registros sin fecha")
+                                        fecha_formateada = fecha_formateada.drop_nulls()
                                 
-                                numero_marcado_col = safe_get_column(joined, ['numero_marcado']) or 'numero_marcado'
-                                if numero_marcado_col not in joined.columns:
-                                    joined = joined.with_columns(pl.lit("").alias('numero_marcado'))
-                                
-                                res = joined.select([
-                                    (pl.col('estado').cast(pl.Utf8).replace(status_map) + 
-                                     " - " + pl.col(nombre_campana_col).cast(pl.Utf8).fill_null("BLASTER") + 
-                                     " - Duracion: " + segundos_formateados).alias('gestion'),
-                                    pl.lit("Caller ID rotativo").alias('usuario'),
-                                    fecha_formateada.alias('fechagestion'),
-                                    pl.lit("Ejecucion del Blaster").alias('accion'),
-                                    pl.lit("BLASTER CONTROLNEXT").alias('perfil'),
-                                    pl.col(numero_marcado_col).cast(pl.Utf8).alias('demografico'),
-                                    pl.col('Documento').cast(pl.Utf8).alias('identificacion'),
-                                    (pl.col(id_col).cast(pl.Utf8) + "-").alias('cuenta_promesa'),
-                                    pl.lit("claro").alias('campana')
-                                ])
-                                conditional = "Blaster"
+                                if fecha_formateada is not None and len(fecha_formateada) > 0:
+                                    res = joined.select([
+                                        (pl.col('ESTADO').cast(pl.Utf8).replace(status_map) + 
+                                         " - " + pl.col('NOMBRE DE LA CAMPAÑA').cast(pl.Utf8).fill_null("BLASTER") + 
+                                         " - Duracion: " + pl.col('DURACION').cast(pl.Utf8)).alias('gestion'),
+                                        pl.lit("Caller ID rotativo").alias('usuario'),
+                                        fecha_formateada.alias('fechagestion'),
+                                        pl.lit("Ejecucion del Blaster").alias('accion'),
+                                        pl.lit("BLASTER CONTROLNEXT").alias('perfil'),
+                                        pl.col('NUMERO MARCADO').cast(pl.Utf8).alias('demografico'),
+                                        pl.col('Documento').cast(pl.Utf8).alias('identificacion'),
+                                        (pl.col(id_col).cast(pl.Utf8) + "-").alias('cuenta_promesa'),
+                                        pl.lit("claro").alias('campana')
+                                    ])
+                                    conditional = "Blaster"
                             
-                            elif 'mejor_marcacion' in cols:
-                                fecha_col = safe_get_column(joined, ['fecha_inicio_llamada'])
-                                fecha_formateada = joined[fecha_col].map_elements(format_datetime_with_T, return_dtype=pl.Utf8) if fecha_col else pl.lit(datetime.now().strftime('%Y-%m-%dT%H:%M:%S'))
-
-                                segundos_col = safe_get_column(joined, ['segundos'])
-                                segundos_formateados = joined[segundos_col].map_elements(format_segundos, return_dtype=pl.Utf8) if segundos_col else pl.lit("0")
+                            elif 'Mejor_Marcacion' in cols:
+                                fecha_col = 'Fecha_Inicio_Ultima_Llamada'
+                                fecha_formateada = None
                                 
-                                celular_col = safe_get_column(joined, ['celular']) or 'celular'
-                                if celular_col not in joined.columns:
-                                    joined = joined.with_columns(pl.lit("").alias('celular'))
+                                if fecha_col in joined.columns:
+                                    fecha_formateada = joined[fecha_col].map_elements(
+                                        format_datetime_with_T, return_dtype=pl.Utf8
+                                    )
+                                
+                                if fecha_formateada is not None and fecha_formateada.null_count() > 0:
+                                    random_date = get_random_date_from_column(joined, fecha_col)
+                                    if random_date:
+                                        fecha_formateada = fecha_formateada.fill_null(random_date)
+                                    else:
+                                        print(f"⚠️ No hay fechas válidas en {fname} para IVR, omitiendo registros sin fecha")
+                                        fecha_formateada = fecha_formateada.drop_nulls()
 
-                                res = joined.select([
-                                    (pl.col('mejor_marcacion').cast(pl.Utf8) + " - Duracion: " + segundos_formateados).alias('gestion'),
-                                    pl.lit("Caller ID rotativo").alias('usuario'),
-                                    fecha_formateada.alias('fechagestion'),
-                                    pl.lit("Envio manual Syncra").alias('accion'),
-                                    pl.lit("IVR SAEM").alias('perfil'),
-                                    pl.col(celular_col).cast(pl.Utf8).str.slice(-10).alias('demografico'),
-                                    pl.col('Documento').cast(pl.Utf8).alias('identificacion'),
-                                    (pl.col(id_col).cast(pl.Utf8) + "-").alias('cuenta_promesa'),
-                                    pl.lit("claro").alias('campana')
-                                ])
-                                conditional = "IVR Saem"
+                                seconds_col = safe_get_column(joined, ['secounds', 'Segundos', 'DURACION', 'Duracion', 'duracion'])
+                                
+                                if seconds_col and fecha_formateada is not None and len(fecha_formateada) > 0:
+                                    # Crear la columna de gestión con valor por defecto si está vacía
+                                    gestion_col = (
+                                        pl.col('Mejor_Marcacion').cast(pl.Utf8) + 
+                                        " - Duracion: " + pl.col(seconds_col).cast(pl.Utf8).map_elements(
+                                            format_seconds, return_dtype=pl.Utf8
+                                        )
+                                    )
+                                    
+                                    # Si la gestión está vacía o es nula, usar "No Contesta - Duracion: 0"
+                                    gestion_col = pl.when(
+                                        gestion_col.is_null() | (gestion_col == "")
+                                    ).then(
+                                        pl.lit("No Contesta - Duracion: 0")
+                                    ).otherwise(gestion_col)
+                                    
+                                    res = joined.select([
+                                        gestion_col.alias('gestion'),
+                                        pl.lit("Caller ID rotativo").alias('usuario'),
+                                        fecha_formateada.alias('fechagestion'),
+                                        pl.lit("Envio manual Syncra").alias('accion'),
+                                        pl.lit("IVR SAEM").alias('perfil'),
+                                        pl.col('Celular').cast(pl.Utf8).str.slice(-10).alias('demografico'),
+                                        pl.col('Documento').cast(pl.Utf8).alias('identificacion'),
+                                        (pl.col(id_col).cast(pl.Utf8) + "-").alias('cuenta_promesa'),
+                                        pl.lit("claro").alias('campana')
+                                    ])
+                                    conditional = "IVR Saem"
+                                else:
+                                    print(f"⚠️ No seconds column or valid dates found in {fname} for IVR processing")
                 except Exception as e:
                     print(f"⚠️ Error in Blaster/IVR processing for {fname}: {e}")
 
             if res is not None:
-                res = res.select([pl.all().cast(pl.Utf8)])
-                final_dfs.append(res)
-                print(f"✅ {fname} processed as {conditional}")
+                try:
+                    res = res.select([pl.all().cast(pl.Utf8)])
+                    final_dfs.append(res)
+                    print(f"✅ {fname} processed as {conditional}")
+                except Exception as e:
+                    print(f"⚠️ Error casting result for {fname}: {e}")
             else:
                 print(f"⏭️ {fname} skipped - no matching processing logic")
 
@@ -396,27 +410,34 @@ def process_batch_files(input_path, output_path):
             print(f"❌ Fatal error in {fname}: {e}")
 
     if final_dfs:
-        output_df = pl.concat(final_dfs)
-        output_df = output_df.drop_nulls(subset=['fechagestion', 'demografico', 'identificacion', 'cuenta_promesa']).unique()
-        
-        print("\n📊 --- SUMMARY BY PROFILE ---")
-        print(output_df.group_by("perfil").len(name="count"))
-        print(f"Total final records: {output_df.height:,}")
-
-        out_file = os.path.join(output_path, f"batch_api_claro_{datetime.now().strftime('%Y%m%d_%H%M')}.csv")
-        output_df.write_csv(out_file, separator=';')
-
         try:
-            job_result = upload_batch_file(out_file)
-            if job_result and job_result.get('jobId'):
-                job_id = job_result.get('jobId')
-                print(f"📤 File sent to API - Job ID: {job_id}")
-                return f"Archivo batch cargado bajo el Job ID: {job_id}"
-            else:
-                print("⚠️ File saved but could not be sent to API")
-                return f"Archivo guardado con un novedad sobre API"
+            output_df = pl.concat(final_dfs)
+            output_df = output_df.drop_nulls(subset=['fechagestion', 'demografico', 'identificacion', 'cuenta_promesa']).unique()
+            
+            print("\n📊 --- SUMMARY BY PROFILE ---")
+            conteo = output_df.group_by("perfil").len(name="count")
+            print(conteo)
+            print(f"Total final records: {output_df.height:,}")
+
+            out_file = os.path.join(output_path, f"batch_api_claro_{datetime.now().strftime('%Y%m%d_%H%M')}.csv")
+            output_df.write_csv(out_file, separator=';')
+
+            try:
+                job_result = upload_batch_file(out_file)
+                if job_result and job_result.get('jobId'):
+                    job_id = job_result.get('jobId')
+                    print(f"📤 File sent to API - Job ID: {job_id}")
+                    return f"Archivo batch cargado bajo el Job ID: {job_id}"
+                else:
+                    print("⚠️ File saved but could not be sent to API")
+                    return f"Archivo guardado con un novedad sobre API"
+            except Exception as e:
+                print(f"⚠️ Error uploading to API: {e}")
+                return f"Archivo guardado con error en API"
+        
         except Exception as e:
-            print(f"⚠️ Error uploading to API: {e}")
-            return f"Archivo guardado con error en API"
+            error_msg = f"Error creating final output: {e}"
+            print(f"❌ {error_msg}")
+            return error_msg
     
     return "Nothing processed."

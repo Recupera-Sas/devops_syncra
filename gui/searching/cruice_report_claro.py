@@ -72,8 +72,8 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         return "❌ No se encontró la columna 'cuenta_next' en el archivo de cruce"
     
     df_next = df_next.with_columns([
-        pl.col(cuenta_col).str.replace_all(r'[-.]', '').alias('cuenta_clean'),
-        pl.col(cuenta_next_col).str.replace_all(r'[-.]', '').alias('cuenta_next_clean')
+        pl.col(cuenta_col).alias('cuenta_original'),
+        pl.col(cuenta_next_col).str.replace_all(r'[-.]', '').str.replace(r'^0+', '').alias('cuenta_next_clean')
     ])
     
     cuenta_promesa_col = None
@@ -88,6 +88,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_promesa = df_promesa.with_columns([
         pl.col(cuenta_promesa_col).str.replace_all(r'[-.]', '').alias('cuenta_promesa_clean')
     ])
+    
     df_merged = df_promesa.join(
         df_next,
         left_on='cuenta_promesa_clean',
@@ -162,12 +163,24 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     missing = [col for col in required_cols if col not in col_map]
     if missing:
         return f"❌ Faltan columnas: {missing}"
+    print(df_next.columns)
+    if 'Debt_Age_Inicial' in df_next.columns:
+        print("Entra")
+        df_merged = df_merged.with_columns([
+            pl.when(pl.col(col_map['marca_asignada']) == "120 - 180")
+            .then(pl.col('Debt_Age_Inicial'))
+            .otherwise(pl.col(col_map['marca_asignada']))
+            .alias('marca_asignada_corregida')
+        ])
+        marca_col = 'marca_asignada_corregida'
+    else:
+        marca_col = col_map['marca_asignada']
     
     df_final = df_merged.with_columns([
         pl.lit("13").alias("id_casa_cobranza"),
-        (pl.col(cuenta_col)).alias("Cuenta"),
+        pl.col('cuenta_original').alias("Cuenta"),
         pl.col(col_map['nombre_del_cliente']).alias("nombre_completo"),
-        pl.col(col_map['marca_asignada']).alias("edad_mora_asignada"),
+        pl.col(marca_col).alias("edad_mora_asignada"),
         pl.col(col_map['fechagestion']).str.to_datetime(format=None, strict=False).dt.strftime("%H:%M:%S").alias("hora_gestion"),
         pl.col(col_map['fechagestion']).str.to_datetime(format=None, strict=False).dt.date().alias("fecha_gestion"),
         pl.col(col_map['gestion']).map_elements(extract_duration, return_dtype=pl.Utf8).alias("duracion_gestion"),
@@ -284,7 +297,8 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
             separator=';', 
             try_parse_dates=False,
             infer_schema_length=10000,
-            encoding='utf8'
+            encoding='utf8',
+            ignore_errors=True
         )
     else:
         df = pl.read_parquet(file_path)
@@ -300,8 +314,10 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
         if 'cuenta' in df_columns_lower:
             df = df.rename({df_columns_lower['cuenta']: 'Cuenta'})
     
-    if 'linea_telefonica_mail' not in df.columns or 'Cuenta' not in df.columns:
-        return "❌ El archivo no contiene las columnas necesarias"
+    if 'linea_telefonica_mail' not in df.columns:
+        df = df.with_columns(pl.lit('').alias('linea_telefonica_mail'))
+    if 'Cuenta' not in df.columns:
+        df = df.with_columns(pl.lit('').alias('Cuenta'))
     
     df = df.with_columns([
         pl.col('linea_telefonica_mail').cast(pl.String).fill_null('').alias('linea_telefonica_mail_str'),
@@ -382,6 +398,8 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     else:
         df_final_combinado = pl.concat(dfs_a_combinar)
     
+    df_final_combinado = df_final_combinado.unique(subset=['llave'], keep='first')
+    
     monitor_keywords = ['blaster', 'ivr', 'mensajer', 'corre']
     monitor_expr = pl.when(
         pl.col('nombre_asesor').str.to_lowercase().str.contains_any(monitor_keywords)
@@ -420,5 +438,6 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     if df_agente.height > 0:
         print(f"   🔹 Registros AGENTE: {df_agente.height:,}")
         print(f"   🔹 Registros adicionales incorporados: {df_final_combinado.height - df_agente.height:,}")
+    print(f"   🔹 Registros únicos por llave")
     
     return f"✅ Archivo unificado guardado en: {output_file}"

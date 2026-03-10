@@ -72,6 +72,17 @@ def normalize_blaster_columns(df):
     return df
 
 def normalize_ivr_columns(df):
+    # Renombrar columna de segundos si es necesario (dinámico)
+    seconds_column = None
+    for col in df.columns:
+        col_lower = col.lower()
+        if 'segundos' in col_lower or 'seconds' in col_lower or 'secound' in col_lower:
+            seconds_column = col
+            break
+    
+    if seconds_column and seconds_column != 'secounds':
+        df = df.rename({seconds_column: 'secounds'})
+    
     if 'Identificacion' in df.columns:
         df = df.rename({'Identificacion': 'identificacion'})
     
@@ -307,16 +318,30 @@ def process_ivr_to_common_format(df_ivr, df_assignment):
     else:
         df_joined = df_joined.with_columns(pl.lit('').cast(pl.Utf8).alias('ESTADO'))
     
-    if 'secounds' in df_joined.columns and 'ESTADO' in df_joined.columns:
-        df_joined = df_joined.with_columns(
+    # Buscar dinámicamente la columna de segundos
+    seconds_col = None
+    for col in df_joined.columns:
+        if col.lower() in ['secounds', 'segundos', 'seconds']:
+            seconds_col = col
+            break
+    
+    if seconds_col and 'ESTADO' in df_joined.columns:
+        # Convertir a entero manejando valores float
+        df_joined = df_joined.with_columns([
+            pl.col(seconds_col)
+            .cast(pl.Float64)
+            .fill_null(0)
+            .cast(pl.Int64)
+            .alias('_dur_sec')
+        ]).with_columns(
             pl.when(
                 (pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO'])) & 
-                (pl.col('secounds').fill_null(0) < 5)
+                (pl.col('_dur_sec') < 5)
             )
             .then(pl.lit('CONTESTADA PARCIAL'))
             .otherwise(pl.col('ESTADO'))
             .alias('ESTADO')
-        )
+        ).drop('_dur_sec')
     
     if 'Fecha_Inicio_Ultima_Llamada' in df_joined.columns:
         df_joined = df_joined.with_columns(
@@ -330,10 +355,11 @@ def process_ivr_to_common_format(df_ivr, df_assignment):
     columns.append(pl.col('ESTADO').cast(pl.Utf8).alias('ESTADO'))
     columns.append(pl.col('Fecha_Inicio_Ultima_Llamada').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA') if 'Fecha_Inicio_Ultima_Llamada' in df_joined.columns else pl.lit('').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA'))
     
-    if 'secounds' in df_joined.columns:
+    # Usar la columna de segundos encontrada dinámicamente
+    if seconds_col:
         columns.append(
-            pl.col('secounds')
-            .cast(pl.Int64)
+            pl.col(seconds_col)
+            .cast(pl.Float64)
             .fill_null(0)
             .cast(pl.Int64)
             .alias('DURACION_SEGUNDOS')
@@ -379,16 +405,30 @@ def process_ivr_no_cruce(df_ivr, df_assignment):
     else:
         df_no_cruce = df_no_cruce.with_columns(pl.lit('').cast(pl.Utf8).alias('ESTADO'))
     
-    if 'secounds' in df_no_cruce.columns and 'ESTADO' in df_no_cruce.columns:
-        df_no_cruce = df_no_cruce.with_columns(
+    # Buscar dinámicamente la columna de segundos
+    seconds_col = None
+    for col in df_no_cruce.columns:
+        if col.lower() in ['secounds', 'segundos', 'seconds']:
+            seconds_col = col
+            break
+    
+    if seconds_col and 'ESTADO' in df_no_cruce.columns:
+        # Convertir a entero manejando valores float
+        df_no_cruce = df_no_cruce.with_columns([
+            pl.col(seconds_col)
+            .cast(pl.Float64)
+            .fill_null(0)
+            .cast(pl.Int64)
+            .alias('_dur_sec')
+        ]).with_columns(
             pl.when(
                 (pl.col('ESTADO').is_in(['CONTESTADA', 'COLGO'])) & 
-                (pl.col('secounds').fill_null(0) < 5)
+                (pl.col('_dur_sec') < 5)
             )
             .then(pl.lit('CONTESTADA PARCIAL'))
             .otherwise(pl.col('ESTADO'))
             .alias('ESTADO')
-        )
+        ).drop('_dur_sec')
     
     if 'Fecha_Inicio_Ultima_Llamada' in df_no_cruce.columns:
         df_no_cruce = df_no_cruce.with_columns(
@@ -402,10 +442,11 @@ def process_ivr_no_cruce(df_ivr, df_assignment):
     columns.append(pl.col('ESTADO').cast(pl.Utf8).alias('ESTADO'))
     columns.append(pl.col('Fecha_Inicio_Ultima_Llamada').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA') if 'Fecha_Inicio_Ultima_Llamada' in df_no_cruce.columns else pl.lit('').cast(pl.Utf8).alias('FECHA_INICIO_ULTIMA_LLAMADA'))
     
-    if 'secounds' in df_no_cruce.columns:
+    # Usar la columna de segundos encontrada dinámicamente
+    if seconds_col:
         columns.append(
-            pl.col('secounds')
-            .cast(pl.Int64)
+            pl.col(seconds_col)
+            .cast(pl.Float64)
             .fill_null(0)
             .cast(pl.Int64)
             .alias('DURACION_SEGUNDOS')

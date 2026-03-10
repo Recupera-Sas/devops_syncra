@@ -20,7 +20,7 @@ def search_values_in_files(directory, output_path, search_list, process_data):
     os.makedirs(base_output_path, exist_ok=True)
     
     datetime_now = pd.Timestamp.now().strftime('%Y%m%d - %H%M')
-    base_filename = f'Search Results {datetime_now}'
+    base_filename = f'Resultados de Búsqueda {datetime_now}'
     
     results = {}
     search_stats = {

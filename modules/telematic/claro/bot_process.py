@@ -31,7 +31,7 @@ def Function_Complete(path, output_directory, Partitions, Wallet_Brand, Origins_
     Data_Frame = First_Changes_DataFrame(path)
     Data_Frame = Phone_Data(Data_Frame)
 
-    BOT_list = ["IPCom", "WiseBot", "Atria", "ChatbotService"]
+    BOT_list = ["IPCom", "WiseBot", "Atria", "IAGENWiseBot"]  # Cambiado de ChatbotService a IAGENWiseBot
 
     for Type_Proccess in BOT_list:
         BOT_Process(Data_Frame, Wallet_Brand, Origins_Filter, output_directory, \
@@ -147,7 +147,7 @@ def Renamed_Column(Data_Frame, Type_Proccess):
         
         Data_Frame = Data_Frame.select(columns_select)
         
-    elif Type_Proccess == "ChatbotService":
+    elif Type_Proccess == "IAGENWiseBot":  # Cambiado de ChatbotService a IAGENWiseBot
         
         Data_Frame = Data_Frame.withColumn(
             "PRODUCTO",
@@ -402,7 +402,7 @@ def Atria(RDD, Type_Proccess):
 
     return RDD
 
-def ChatbotService(RDD, Type_Proccess):
+def IAGENWiseBot(RDD, Type_Proccess):  # Cambiado de ChatbotService a IAGENWiseBot
     
     RDD = RDD.withColumn("name_function", split(col("nombrecompleto"), " "))
     RDD = RDD.withColumn("len_name_function", size(col("name_function")))
@@ -569,12 +569,12 @@ def BOT_Process (Data_, Wallet_Brand, Origins_Filter, Directory_to_Save, Partiti
         Data_ = Atria(Data_, Type_Proccess)
         Type_Proccess = "BD Claro VOICEBOTS Atria"
         
-    elif Type_Proccess == "ChatbotService":
+    elif Type_Proccess == "IAGENWiseBot":
         delimiter = ";"
         now = datetime.now()
         Day = now.strftime("%Y%m%d")
-        Type_Proccess = f"BD Claro CHATBOT Service {Day} 1"
-        Data_ = ChatbotService(Data_, Type_Proccess)
+        Type_Proccess = f"BD Claro IAGEN WiseBot {Day} 1"  
+        Data_ = IAGENWiseBot(Data_, Type_Proccess)
 
     else:
         delimiter = ";"

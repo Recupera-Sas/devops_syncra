@@ -3,7 +3,7 @@ from openpyxl import load_workbook
 from datetime import datetime
 import os
 
-def clean_and_process(df, file_label):
+def clean_and_process(df, file_label, file_type='excel'):
     """🧹 Cleans the DataFrame and adds the FILE column."""
     
     # 🔄 Rename columns for consistency
@@ -26,25 +26,27 @@ def clean_and_process(df, file_label):
     
     if 'CUENTA' in df.columns:
         print(f"   🔧 Processing 'CUENTA' column...")
+        # Ensure CUENTA is string and clean it
         df['CUENTA'] = df['CUENTA'].astype(str).str.replace('.', '', regex=False).str[-9:]
         df = df[df['CUENTA'].str.isnumeric()]
         df['ARCHIVO'] = file_label
         print(f"   📋 Added 'ARCHIVO' column with value: {file_label}")
         
         if 'VALOR' in df.columns:
-            df['VALOR'] = df['VALOR'].str.replace('.', ',', regex=False)
+            # Handle VALOR formatting - could be string or numeric
+            df['VALOR'] = df['VALOR'].astype(str).str.replace('.', ',', regex=False)
             print(f"   💰 Formatted 'VALOR' column")
         
         print(f"   ✅ Cleaned data - Shape: {df.shape}")
         return df[['CUENTA', 'ARCHIVO', 'VALOR']] if not df.empty else None
     else:
-        print(f"   ⚠️ No ACCOUNT column found in {file_label} sheet.")
+        print(f"   ⚠️ No CUENTA column found in {file_label} data.")
     return None
 
-def process_file(file_path):
-    """📊 Processes the Excel file and returns the cleaned DataFrame."""
+def process_excel_file(file_path):
+    """📊 Processes Excel file and returns the cleaned DataFrame."""
     df = None
-    print(f"📂 Processing file: {os.path.basename(file_path)}")
+    print(f"📂 Processing Excel file: {os.path.basename(file_path)}")
     
     try:
         xls = pd.ExcelFile(file_path)
@@ -64,7 +66,7 @@ def process_file(file_path):
                 print(f"   📋 Found sheet: '{sheet_name}' → Label: '{file_label}'")
                 df = pd.read_excel(file_path, sheet_name=sheet_name, dtype=str)
                 print(f"   📊 Raw data loaded - Shape: {df.shape}")
-                return clean_and_process(df, file_label)
+                return clean_and_process(df, file_label, 'excel')
         
         print(f"   ⚠️ No relevant sheets found in {os.path.basename(file_path)}")
     except Exception as e:
@@ -72,8 +74,59 @@ def process_file(file_path):
     
     return None
 
+def process_csv_file(file_path):
+    """📊 Processes CSV file and returns the cleaned DataFrame."""
+    print(f"📂 Processing CSV file: {os.path.basename(file_path)}")
+    
+    try:
+        # Try different encodings and delimiters
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1']
+        delimiters = [';', ',']
+        
+        for encoding in encodings:
+            for delimiter in delimiters:
+                try:
+                    df = pd.read_csv(file_path, encoding=encoding, sep=delimiter, dtype=str)
+                    print(f"   ✅ Successfully read with encoding: {encoding}, delimiter: '{delimiter}'")
+                    print(f"   📊 Raw data loaded - Shape: {df.shape}")
+                    print(f"   📋 Columns found: {list(df.columns)}")
+                    
+                    # Determine file label based on filename
+                    filename_lower = file_path.name.lower() if hasattr(file_path, 'name') else os.path.basename(file_path).lower()
+                    
+                    if 'movil' in filename_lower or 'mobile' in filename_lower:
+                        file_label = 'Mobile'
+                    elif 'fijo' in filename_lower or 'landline' in filename_lower:
+                        file_label = 'Landline'
+                    else:
+                        file_label = 'Consolidated'
+                    
+                    return clean_and_process(df, file_label, 'csv')
+                    
+                except Exception as e:
+                    continue
+        
+        print(f"   ❌ Could not read CSV file with any encoding/delimiter combination")
+        
+    except Exception as e:
+        print(f"   ❌ Error processing CSV file: {e}")
+    
+    return None
+
+def process_file(file_path):
+    """📊 Determines file type and processes accordingly."""
+    file_extension = os.path.splitext(file_path)[1].lower()
+    
+    if file_extension == '.xlsx':
+        return process_excel_file(file_path)
+    elif file_extension == '.csv':
+        return process_csv_file(file_path)
+    else:
+        print(f"⚠️ Unsupported file type: {file_extension} - Skipping {os.path.basename(file_path)}")
+        return None
+
 def transform_payments_without_applied(input_folder, output_folder):
-    """🔄 Transform payments without applied status from Excel files."""
+    """🔄 Transform payments without applied status from Excel and CSV files."""
     print("=" * 70)
     print("🚀 STARTING PAYMENTS TRANSFORMATION PROCESS")
     print("=" * 70)
@@ -82,19 +135,28 @@ def transform_payments_without_applied(input_folder, output_folder):
     print("-" * 70)
     
     try:
-        # 📂 Get all Excel files
-        excel_files = [f for f in os.listdir(input_folder) if f.endswith('.xlsx')]
-        print(f"🔍 Found {len(excel_files)} Excel file(s):")
-        for file in excel_files:
-            print(f"   • {file}")
+        # 📂 Get all Excel and CSV files
+        all_files = [f for f in os.listdir(input_folder) if f.endswith(('.xlsx', '.csv'))]
+        excel_files = [f for f in all_files if f.endswith('.xlsx')]
+        csv_files = [f for f in all_files if f.endswith('.csv')]
         
-        if not excel_files:
-            raise FileNotFoundError("❌ No Excel files found in the input folder.")
+        print(f"🔍 Found {len(all_files)} file(s):")
+        if excel_files:
+            print(f"   📊 Excel files ({len(excel_files)}):")
+            for file in excel_files:
+                print(f"      • {file}")
+        if csv_files:
+            print(f"   📄 CSV files ({len(csv_files)}):")
+            for file in csv_files:
+                print(f"      • {file}")
+        
+        if not all_files:
+            raise FileNotFoundError("❌ No Excel or CSV files found in the input folder.")
         
         df_list = []
         total_records_processed = 0
         
-        for file_name in excel_files:
+        for file_name in all_files:
             file_path = os.path.join(input_folder, file_name)
             
             # 📝 Print processing message with emojis
@@ -113,11 +175,13 @@ def transform_payments_without_applied(input_folder, output_folder):
                 record_count = len(df)
                 total_records_processed += record_count
                 print(f"{record_count:,}")
+            else:
+                print("0")
         
         print(f"\n📊 TOTAL RECORDS PROCESSED: {total_records_processed:,}")
         
         if not df_list:
-            raise ValueError("❌ No DataFrames were processed. Ensure Excel files contain the specified sheets.")
+            raise ValueError("❌ No DataFrames were processed. Ensure files contain the required columns.")
         
         print(f"\n🔄 Combining {len(df_list)} DataFrame(s)...")
         
