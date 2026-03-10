@@ -249,7 +249,7 @@ def process_batch_files(input_path, output_path):
                     
                     if df_email.height > 0:
                         id_col = safe_get_column(df_email, ['identificacion', 'Identificacion', 'IDENTIFICACION', 'Documento', 'documento', 'DOCUMENTO'])
-                        cuenta_col = safe_get_column(df_email, ['Cuenta', 'cuenta', 'CUENTA', 'Referencia', 'referencia', 'REFERENCIA', 'Cuenta_Next'])
+                        cuenta_col = safe_get_column(df_email, ['Cuenta', 'cuenta', 'CUENTA', 'Cuenta_Next'])
                         dato_col = safe_get_column(df_email, ['Dato_Contacto', 'dato_contacto', 'DATOCONTACTO', 'Email', 'email', 'EMAIL'])
                         
                         if id_col and cuenta_col and dato_col and fecha_base:

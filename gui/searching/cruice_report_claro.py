@@ -41,8 +41,18 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
             
             if 'cuenta_next' in cols:
                 df_next = df
+                print(f"\n📄 Archivo NEXT: {file}")
+                print(f"   Registros: {df.height:,}")
             elif 'cuenta_promesa' in cols:
                 df_promesa = df
+                print(f"\n📄 Archivo PROMESA: {file}")
+                print(f"   Registros: {df.height:,}")
+                # Mostrar distribución de perfiles
+                if 'perfil' in df.columns:
+                    perfil_counts = df.group_by('perfil').agg(pl.len().alias('count')).sort('count', descending=True)
+                    print("   Distribución de perfiles:")
+                    for row in perfil_counts.rows():
+                        print(f"      {row[0]}: {row[1]:,}")
         
         except Exception as e:
             print(f"⚠️  Error en {file}: {str(e)[:50]}")
@@ -51,7 +61,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if df_next is None or df_promesa is None:
         return "❌ No se encontraron los archivos necesarios"
     
-    print("🔄 Procesando cruce...")
+    print("\n🔄 Procesando cruce por etapas...")
     
     cuenta_col = None
     for col in df_next.columns:
@@ -71,11 +81,6 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_next_col is None:
         return "❌ No se encontró la columna 'cuenta_next' en el archivo de cruce"
     
-    df_next = df_next.with_columns([
-        pl.col(cuenta_col).alias('cuenta_original'),
-        pl.col(cuenta_next_col).str.replace_all(r'[-.]', '').str.replace(r'^0+', '').alias('cuenta_next_clean')
-    ])
-    
     cuenta_promesa_col = None
     for col in df_promesa.columns:
         if col.lower() == 'cuenta_promesa':
@@ -85,18 +90,193 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_promesa_col is None:
         return "❌ No se encontró la columna 'cuenta_promesa' en el archivo base"
     
-    df_promesa = df_promesa.with_columns([
-        pl.col(cuenta_promesa_col).str.replace_all(r'[-.]', '').alias('cuenta_promesa_clean')
+    # PASO 1: Limpieza básica en NEXT
+    print("\n🧹 PASO 1: Limpieza básica de cuentas...")
+    df_next = df_next.with_columns([
+        pl.col(cuenta_col).alias('cuenta_original'),
+        pl.col(cuenta_next_col)
+        .str.replace_all(r'[.\-]', '')  # Eliminar puntos y guiones
+        .str.replace(r'^0+', '')         # Eliminar ceros a la izquierda
+        .alias('cuenta_next_clean_1')
     ])
     
-    df_merged = df_promesa.join(
+    # PASO 2: Limpieza básica en PROMESA
+    df_promesa = df_promesa.with_columns([
+        pl.col(cuenta_promesa_col)
+        .str.replace_all(r'[.\-]', '')  # Eliminar puntos y guiones
+        .alias('cuenta_promesa_clean_1')
+    ])
+    
+    # PASO 3: Crear versiones alternativas para PROMESA
+    print("\n🔧 PASO 2: Creando versiones alternativas de cuentas para PROMESA...")
+    
+    # CORRECCIÓN: Manejar caso cuando la cadena está vacía
+    df_promesa = df_promesa.with_columns([
+        # Versión sin ceros a la izquierda
+        pl.col('cuenta_promesa_clean_1')
+        .str.replace(r'^0+', '')
+        .alias('cuenta_promesa_sin_ceros'),
+        
+        # Versión quitando el último dígito (solo si tiene más de 1 dígito)
+        pl.when(
+            pl.col('cuenta_promesa_clean_1').str.len_chars() > 1
+        )
+        .then(
+            pl.col('cuenta_promesa_clean_1').str.slice(0, pl.col('cuenta_promesa_clean_1').str.len_chars() - 1)
+        )
+        .otherwise(pl.col('cuenta_promesa_clean_1'))
+        .alias('cuenta_promesa_sin_ultimo_digito'),
+        
+        # Versión con ceros a la izquierda (para casos como 1235551001010 que debería ser 01235551001010)
+        pl.when(
+            pl.col('cuenta_promesa_clean_1').str.len_chars() == 13  # Si tiene 13 dígitos
+        )
+        .then(
+            pl.lit("0") + pl.col('cuenta_promesa_clean_1')  # Agregar cero al inicio
+        )
+        .otherwise(pl.col('cuenta_promesa_clean_1'))
+        .alias('cuenta_promesa_con_cero_inicial')
+    ])
+    
+    # PASO 4: Crear versiones alternativas para NEXT
+    print("🔧 PASO 3: Creando versiones alternativas de cuentas para NEXT...")
+    df_next = df_next.with_columns([
+        # Versión con ceros a la izquierda (para casos donde NEXT tiene el cero)
+        pl.when(
+            pl.col('cuenta_next_clean_1').str.len_chars() == 13  # Si tiene 13 dígitos
+        )
+        .then(
+            pl.lit("0") + pl.col('cuenta_next_clean_1')  # Agregar cero al inicio
+        )
+        .otherwise(pl.col('cuenta_next_clean_1'))
+        .alias('cuenta_next_con_cero_inicial')
+    ])
+    
+    # Mostrar ejemplos de las transformaciones
+    print("\n🔍 Ejemplos de transformaciones en PROMESA:")
+    ejemplos_promesa = df_promesa.select([
+        pl.col(cuenta_promesa_col).alias('original'),
+        'cuenta_promesa_clean_1',
+        'cuenta_promesa_sin_ceros',
+        'cuenta_promesa_sin_ultimo_digito',
+        'cuenta_promesa_con_cero_inicial'
+    ]).head(10)
+    print(ejemplos_promesa)
+    
+    print("\n🔍 Ejemplos de transformaciones en NEXT:")
+    ejemplos_next = df_next.select([
+        pl.col(cuenta_next_col).alias('original'),
+        'cuenta_next_clean_1',
+        'cuenta_next_con_cero_inicial'
+    ]).head(10)
+    print(ejemplos_next)
+    
+    # PASO 5: Realizar cruces por etapas
+    print("\n🔄 PASO 4: Realizando cruces por etapas...")
+    
+    # Etapa 1: Cruce básico (limpieza estándar)
+    print("   Etapa 1: Cruce con limpieza básica...")
+    df_merged_1 = df_promesa.join(
         df_next,
-        left_on='cuenta_promesa_clean',
-        right_on='cuenta_next_clean',
+        left_on='cuenta_promesa_clean_1',
+        right_on='cuenta_next_clean_1',
         how='inner'
     )
+    print(f"      Registros en etapa 1: {df_merged_1.height:,}")
     
-    print(f"📊 Registros: {df_merged.height:,}")
+    # Identificar cuentas de PROMESA que ya cruzaron
+    cuentas_cruzadas = set(df_merged_1['cuenta_promesa_clean_1'].to_list()) if df_merged_1.height > 0 else set()
+    
+    # Etapa 2: Cruce con PROMESA sin ceros vs NEXT limpio
+    print("   Etapa 2: Cruce con PROMESA sin ceros vs NEXT limpio...")
+    df_promesa_restante = df_promesa.filter(~pl.col('cuenta_promesa_clean_1').is_in(cuentas_cruzadas))
+    
+    df_merged_2 = df_promesa_restante.join(
+        df_next,
+        left_on='cuenta_promesa_sin_ceros',
+        right_on='cuenta_next_clean_1',
+        how='inner'
+    )
+    print(f"      Registros en etapa 2: {df_merged_2.height:,}")
+    
+    # Actualizar cuentas cruzadas
+    nuevas_cuentas = set(df_merged_2['cuenta_promesa_clean_1'].to_list()) if df_merged_2.height > 0 else set()
+    cuentas_cruzadas.update(nuevas_cuentas)
+    
+    # Etapa 3: Cruce con PROMESA sin último dígito vs NEXT limpio
+    print("   Etapa 3: Cruce quitando último dígito de PROMESA...")
+    df_promesa_restante = df_promesa.filter(~pl.col('cuenta_promesa_clean_1').is_in(cuentas_cruzadas))
+    
+    df_merged_3 = df_promesa_restante.join(
+        df_next,
+        left_on='cuenta_promesa_sin_ultimo_digito',
+        right_on='cuenta_next_clean_1',
+        how='inner'
+    )
+    print(f"      Registros en etapa 3: {df_merged_3.height:,}")
+    
+    # Actualizar cuentas cruzadas
+    nuevas_cuentas = set(df_merged_3['cuenta_promesa_clean_1'].to_list()) if df_merged_3.height > 0 else set()
+    cuentas_cruzadas.update(nuevas_cuentas)
+    
+    # Etapa 4: Cruce con PROMESA con cero inicial vs NEXT con cero inicial
+    print("   Etapa 4: Cruce con cero inicial en ambas...")
+    df_promesa_restante = df_promesa.filter(~pl.col('cuenta_promesa_clean_1').is_in(cuentas_cruzadas))
+    
+    df_merged_4 = df_promesa_restante.join(
+        df_next,
+        left_on='cuenta_promesa_con_cero_inicial',
+        right_on='cuenta_next_con_cero_inicial',
+        how='inner'
+    )
+    print(f"      Registros en etapa 4: {df_merged_4.height:,}")
+    
+    # Combinar todos los resultados
+    print("\n📊 Combinando resultados de todas las etapas...")
+    dfs_to_concat = []
+    if df_merged_1.height > 0:
+        dfs_to_concat.append(df_merged_1)
+    if df_merged_2.height > 0:
+        dfs_to_concat.append(df_merged_2)
+    if df_merged_3.height > 0:
+        dfs_to_concat.append(df_merged_3)
+    if df_merged_4.height > 0:
+        dfs_to_concat.append(df_merged_4)
+    
+    if dfs_to_concat:
+        df_merged = pl.concat(dfs_to_concat)
+        # Eliminar duplicados por si alguna cuenta cruzó en múltiples etapas
+        df_merged = df_merged.unique(subset=['cuenta_promesa_clean_1'])
+    else:
+        df_merged = df_promesa.clear()  # DataFrame vacío
+    
+    print(f"\n📊 Registros totales después de todas las etapas: {df_merged.height:,}")
+    
+    # Identificar registros que NO CRUZARON en ninguna etapa
+    cuentas_finales_cruzadas = set(df_merged['cuenta_promesa_clean_1'].to_list()) if df_merged.height > 0 else set()
+    df_promesa_sin_match = df_promesa.filter(~pl.col('cuenta_promesa_clean_1').is_in(cuentas_finales_cruzadas))
+    
+    print(f"\n📊 Registros que NO CRUZARON en ninguna etapa: {df_promesa_sin_match.height:,}")
+    
+    # Guardar registros que no cruzaron
+    timestamp_analisis = datetime.now().strftime('%Y%m%d_%H%M%S')
+    if df_promesa_sin_match.height > 0:
+        output_sin_match = os.path.join(output_folder, f"registros_sin_match_promesa_{timestamp_analisis}.csv")
+        
+        print("\n📊 Distribución de perfiles en registros SIN MATCH:")
+        sin_match_perfiles = df_promesa_sin_match.group_by('perfil').agg(pl.len().alias('count')).sort('count', descending=True)
+        for row in sin_match_perfiles.rows():
+            print(f"      {row[0]}: {row[1]:,}")
+        
+        df_promesa_sin_match.write_csv(output_sin_match, separator=';')
+        print(f"   ✅ Guardados en: {output_sin_match}")
+    
+    # Verificar correos después del cruce
+    if 'perfil' in df_merged.columns:
+        correos_despues = df_merged.filter(
+            pl.col('perfil').str.to_lowercase().str.contains("correo|corre")
+        ).height
+        print(f"\n📧 CORREOS después del cruce por etapas: {correos_despues:,}")
     
     def extract_duration(gestion_text):
         if gestion_text is None:
@@ -163,9 +343,8 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     missing = [col for col in required_cols if col not in col_map]
     if missing:
         return f"❌ Faltan columnas: {missing}"
-    print(df_next.columns)
+    
     if 'Debt_Age_Inicial' in df_next.columns:
-        print("Entra")
         df_merged = df_merged.with_columns([
             pl.when(pl.col(col_map['marca_asignada']) == "120 - 180")
             .then(pl.col('Debt_Age_Inicial'))
@@ -204,10 +383,20 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         "linea_telefonica_mail", "fecha_realizacion_promesa", "fecha_compromiso_pago"
     ])
     
+    # Guardar archivo con todos los registros de CORREO (filtro simple)
+    df_correo_total = df_final.filter(
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("corr")
+    )
+    print(f"\n📧 TOTAL REGISTROS CON 'CORR' después de cruce por etapas: {df_correo_total.height:,}")
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     output_completo = os.path.join(output_folder, f"gestion_final_completo_{timestamp}.csv")
     df_final.write_csv(output_completo, separator=';')
+    
+    # Guardar archivo con TODOS los correos
+    output_correo_total = os.path.join(output_folder, f"todos_los_correos_{timestamp}.csv")
+    df_correo_total.write_csv(output_correo_total, separator=';')
     
     df_efectivo = df_final.filter(
         pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio")
@@ -236,40 +425,59 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     output_mensajes = os.path.join(output_folder, f"reporte_mensajes_{timestamp}.csv")
     df_mensajes.write_csv(output_mensajes, separator=';')
     
+    # CORREOS - filtrado simple y procesamiento
     df_correo = df_final.filter(
-        pl.col("nombre_asesor").str.to_lowercase().str.contains("corre")
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("corr")
     )
     
     if df_correo.height > 0:
-        primer_valor = df_correo['linea_telefonica_mail'].to_list()[0]
-        if primer_valor is not None and '|' in str(primer_valor):
-            try:
-                df_correo = df_correo.with_columns([
-                    pl.col('linea_telefonica_mail').str.split_exact('|', 1).struct.field('field_1').alias('linea_telefonica_mail_temp')
-                ])
-                df_correo = df_correo.with_columns([
-                    pl.col('linea_telefonica_mail_temp').fill_null(pl.col('linea_telefonica_mail')).alias('linea_telefonica_mail')
-                ])
-                df_correo = df_correo.drop('linea_telefonica_mail_temp')
-            except:
-                pass
+        print(f"\n📧 Procesando {df_correo.height:,} registros de correo")
+        
+        # Función para extraer el email de la tipificación
+        def extract_email_from_tipificacion(row):
+            tipificacion = row.get('tipificacion', '')
+            if tipificacion and '|' in str(tipificacion):
+                parts = str(tipificacion).split('|')
+                return parts[-1].strip()
+            return row.get('linea_telefonica_mail', '')
+        
+        # Aplicar la extracción de email
+        df_correo = df_correo.with_columns([
+            pl.struct(['tipificacion', 'linea_telefonica_mail'])
+            .map_elements(extract_email_from_tipificacion, return_dtype=pl.Utf8)
+            .alias('linea_telefonica_mail_corregido')
+        ])
+        
+        # Actualizar la columna con el email extraído
+        df_correo = df_correo.with_columns([
+            pl.when(pl.col('linea_telefonica_mail_corregido') != '')
+            .then(pl.col('linea_telefonica_mail_corregido'))
+            .otherwise(pl.col('linea_telefonica_mail'))
+            .alias('linea_telefonica_mail')
+        ]).drop('linea_telefonica_mail_corregido')
+        
+        # También actualizar la tipificación para quitar el email
+        def clean_tipificacion(tipificacion):
+            if tipificacion and '|' in str(tipificacion):
+                parts = str(tipificacion).split('|')
+                return '|'.join(parts[:-1])
+            return tipificacion
+        
+        df_correo = df_correo.with_columns([
+            pl.col('tipificacion')
+            .map_elements(clean_tipificacion, return_dtype=pl.Utf8)
+            .alias('tipificacion')
+        ])
     
     output_correo = os.path.join(output_folder, f"reporte_correos_{timestamp}.csv")
     df_correo.write_csv(output_correo, separator=';')
     
-    print(f"✅ Procesado: {df_final.height:,} registros totales")
+    print(f"\n✅ RESUMEN FINAL:")
+    print(f"   📊 Total registros: {df_final.height:,}")
     print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
-    print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
-    print(f"   🔹 Blasters: {df_blasters.height:,}")
+    print(f"   🔹 Blasters+IVR: {df_blasters.height:,}")
     print(f"   🔹 Mensajería: {df_mensajes.height:,}")
-    print(f"   🔹 Correos detectados: {df_correo.height:,}")
-    print(f"💾 Archivos guardados:")
-    print(f"   📄 Completo: {output_completo}")
-    print(f"   📄 Blasters: {output_blasters}")
-    print(f"   📄 Efectivo: {output_efectivo}")
-    print(f"   📄 No Efectivo: {output_no_efectivo}")
-    print(f"   📄 Mensajes: {output_mensajes}")
-    print(f"   📄 Correos: {output_correo}")
+    print(f"   🔹 CORREOS (todos los que contienen 'corr'): {df_correo.height:,}")
     
     return procesar_archivo_final(output_folder, output_folder)
 
@@ -363,12 +571,11 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     if df_mensajeria.height > 0:
         otros_dfs.append(df_mensajeria)
     
+    # CORREOS - filtrado simple por "corr"
     df_correo = df.filter(
         (pl.col('canal') != 'AGENTE') & 
         (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
-        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr')) &
-        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('mensajer')) &
-        (pl.col('nombre_asesor').str.to_lowercase().str.contains('corre'))
+        (pl.col('nombre_asesor').str.to_lowercase().str.contains("corr"))
     )
     if df_correo.height > 0:
         otros_dfs.append(df_correo)
@@ -378,7 +585,7 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
         (~pl.col('tipificacion').str.to_lowercase().str.starts_with('contestada')) &
         (~pl.col('nombre_asesor').str.to_lowercase().str.contains('blaster|ivr')) &
         (~pl.col('nombre_asesor').str.to_lowercase().str.contains('mensajer')) &
-        (~pl.col('nombre_asesor').str.to_lowercase().str.contains('corre'))
+        (~pl.col('nombre_asesor').str.to_lowercase().str.contains("corr"))
     )
     if df_resto.height > 0:
         otros_dfs.append(df_resto)
@@ -400,7 +607,7 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     
     df_final_combinado = df_final_combinado.unique(subset=['llave'], keep='first')
     
-    monitor_keywords = ['blaster', 'ivr', 'mensajer', 'corre']
+    monitor_keywords = ['blaster', 'ivr', 'mensajer', 'correo', 'corre']
     monitor_expr = pl.when(
         pl.col('nombre_asesor').str.to_lowercase().str.contains_any(monitor_keywords)
     ).then(
@@ -433,11 +640,7 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     
     df_final_combinado.write_csv(output_file, separator=';')
     
-    print(f"✅ Archivo unificado generado: {output_file}")
+    print(f"\n✅ Archivo unificado generado: {output_file}")
     print(f"   📊 Total registros: {df_final_combinado.height:,}")
-    if df_agente.height > 0:
-        print(f"   🔹 Registros AGENTE: {df_agente.height:,}")
-        print(f"   🔹 Registros adicionales incorporados: {df_final_combinado.height - df_agente.height:,}")
-    print(f"   🔹 Registros únicos por llave")
     
     return f"✅ Archivo unificado guardado en: {output_file}"
