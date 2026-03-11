@@ -65,9 +65,9 @@ def details_files(folder_path, output_folder):
                         
                         if first_row:
                             titles = [str(cell) if cell is not None else '' for cell in first_row]
-                            titles_text = ', '.join(titles[:10])  # Mostrar solo primeros 10 títulos
-                            if len(titles) > 10:
-                                titles_text += f" ... (+{len(titles)-10} más)"
+                            titles_text = ', '.join(titles[:50])
+                            if len(titles) > 50:
+                                titles_text += f" ... (+{len(titles)-50} más)"
                             writer.writerow([filename, sheet_name, titles_text, total_rows, '✅ Excel procesado'])
                         else:
                             writer.writerow([filename, sheet_name, "Sin títulos detectados", total_rows, '⚠️ Hoja vacía'])
