@@ -11,7 +11,8 @@ warnings.filterwarnings('ignore')
 # ================================================
 
 FOLDER_CONFIG = {
-    "input_subfolders": ["Asignacion", "ReporteClientes", "ReporteGestion"],
+    "input_subfolders": ["Asignacion", "ReporteClientes", "ReporteGestion"], 
+     "output_folder": "output",
     "excel_prefix": "REPORT_DAILY_PAYJOY"
 }
 

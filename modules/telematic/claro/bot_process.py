@@ -523,7 +523,7 @@ def IAGENServiceBots(RDD, Type_Proccess):  # Nueva función para IAGEN Servicebo
     RDD = RDD.dropDuplicates(["Cruce_Cuentas"])
     
     # Crear las columnas según la estructura solicitada
-    RDD = RDD.withColumn("param_identification_concat", concat(col("identificacion"), lit("-"), col("cuenta"), col("marca")))
+    RDD = RDD.withColumn("param_identification_concat", concat(col("cuenta"), col("marca")))
     RDD = RDD.withColumn("param_full_name", col("nombrecompleto"))
     RDD = RDD.withColumn("param_company", lit("Claro"))
     RDD = RDD.withColumn("param_product", 
