@@ -431,7 +431,7 @@ def IAGENWiseBot(RDD, Type_Proccess):
     RDD = RDD.withColumn("DIASMORA", datediff(current_date(), col("fecha_vencimiento")))
     
     # Crear las columnas necesarias
-    RDD = RDD.withColumn("IDENTIFICACION", col("identificacion"))
+    RDD = RDD.withColumn("IDENTIFICACION", col("cuenta"))
     RDD = RDD.withColumn("CUENTA", col("cuenta"))
     RDD = RDD.withColumn("CUENTA_REAL", col("cuenta2"))
     RDD = RDD.withColumn("NOMBRE_CORREGIDO", col("nombrecompleto"))

@@ -6,13 +6,9 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# ================================================
-# 🔧 CONFIGURATION & MAPPINGS
-# ================================================
-
 FOLDER_CONFIG = {
     "input_subfolders": ["Asignacion", "ReporteClientes", "ReporteGestion"], 
-     "output_folder": "output",
+    "output_folder": "output",
     "excel_prefix": "REPORT_DAILY_PAYJOY"
 }
 
@@ -57,10 +53,6 @@ MAPPINGS = {
     }
 }
 
-# ================================================
-# 🛠️ HELPER FUNCTIONS
-# ================================================
-
 def group_buckets(bucket_name):
     bucket_str = str(bucket_name).strip()
     if not bucket_str or bucket_str == "0": 
@@ -71,9 +63,7 @@ def group_buckets(bucket_name):
     
     if "-" in bucket_str:
         try:
-            # Extraer la primera parte antes del guión
             first_part = bucket_str.split("-")[0]
-            # Extraer solo los números de esa parte
             import re
             numbers = re.findall(r'\d+', first_part)
             if numbers:
@@ -101,7 +91,6 @@ def process_management(df: pl.DataFrame):
         pl.col("tiempogestion").cast(pl.Float64, strict=False).fill_null(0.0)
     ])
     
-    # Arreglo Batch -> 10
     df = df.with_columns(
         pl.when(pl.col("_temp_contact").str.contains("batch"))
         .then(pl.lit(10.0))
@@ -127,14 +116,9 @@ def process_management(df: pl.DataFrame):
     
     return df.drop(["_temp_profile", "_temp_reason", "_temp_contact"])
 
-# ================================================
-# 📊 KPI CALCULATOR ENGINE
-# ================================================
-
 def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
     print("📊 Calculating KPI Dashboard metrics...")
     
-    # Normalizar buckets
     assignments_df = assignments_df.with_columns(pl.col(COLUMN_CONFIG["assignments"]["bucket"]).map_elements(group_buckets, return_dtype=pl.String))
     clients_df = clients_df.with_columns(pl.col(COLUMN_CONFIG["clients"]["bucket"]).map_elements(group_buckets, return_dtype=pl.String))
 
@@ -142,8 +126,6 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
         pl.col("bucket_dias_mora").map_elements(group_buckets, return_dtype=pl.String)
     )
 
-    # --- CORRECCIÓN REACHABLE PORTFOLIO (INNER JOIN) ---
-    # Cruzamos asignación con clientes para obtener solo los que coinciden
     reachable_joined = assignments_df.join(
         clients_df.select([COLUMN_CONFIG["clients"]["id"]]), 
         left_on=COLUMN_CONFIG["assignments"]["id"], 
@@ -151,11 +133,9 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
         how="inner"
     )
 
-    # Agrupaciones base
     base_assign = assignments_df.group_by("bucket_dias_mora").agg(pl.len().alias("Assigned Portfolio")).rename({"bucket_dias_mora": "bucket"})
     base_reachable = reachable_joined.group_by("bucket_dias_mora").agg(pl.len().alias("Reachable Portfolio")).rename({"bucket_dias_mora": "bucket"})
 
-    # Métricas de gestión
     buckets_mgmt = management_df.group_by("bucket_dias_mora").agg([
         pl.col("cuenta").filter(pl.col("type_call_answer") != "Desconocido").n_unique().alias("Contacted Portfolio"),
         pl.col("asesor_gestion").filter(~pl.col("asesor_gestion").str.to_lowercase().is_in(["predictivo", "bot"])).n_unique().alias("Active Agents"),
@@ -177,12 +157,10 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
         pl.col("tiempogestion_sec").filter((pl.col("tiempogestion_sec") > 0) & (~pl.col("asesor_gestion").str.to_lowercase().is_in(["predictivo", "bot"])) & (pl.col("type_call_answer") == "Contestada")).mean().alias("AHT (Excluding Short Calls)")
     ]).rename({"bucket_dias_mora": "bucket"})
 
-    # Combinar todas las tablas
     final_buckets = base_assign.join(base_reachable, on="bucket", how="full", coalesce=True) \
                                .join(buckets_mgmt, on="bucket", how="full", coalesce=True) \
                                .fill_null(0)
 
-    # Fila TOTAL
     total_data = {
         "bucket": "TOTAL",
         "Assigned Portfolio": len(assignments_df),
@@ -211,7 +189,6 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
     combined = pl.concat([total_row, final_buckets]).unique(subset=["bucket"])
     combined = combined.with_columns(pl.col("bucket").map_elements(get_bucket_weight, return_dtype=pl.Int32).alias("_weight")).sort("_weight").drop("_weight")
 
-    # Ratios finales
     combined = combined.with_columns([
         (pl.when(pl.col("Reachable Portfolio") > 0).then(pl.col("Contacted Portfolio") / pl.col("Reachable Portfolio")).otherwise(0)).alias("% Contacted / Reachable"),
         (pl.when(pl.col("Contacted Portfolio") > 0).then(pl.col("Unique Customers Reached") / pl.col("Contacted Portfolio")).otherwise(0)).alias("% Unique Reaches / Contacted Portfolio"),
@@ -226,19 +203,14 @@ def calculate_kpi_dashboard(assignments_df, clients_df, management_df):
 
     return combined.fill_null(0).fill_nan(0)
 
-# ================================================
-# 📁 EXCEL EXPORT & MAIN (Siguen igual)
-# ================================================
-
 def save_excel_final(kpi_df, management_df, output_path):
     try:
         filename = f"{FOLDER_CONFIG['excel_prefix']}_DASHBOARD_{datetime.now().strftime('%Y-%m-%d_%H%M')}.xlsx"
-        full_path = output_path.parent / filename
+        full_path = output_path / filename
         
         with pd.ExcelWriter(full_path, engine='xlsxwriter') as writer:
             workbook = writer.book
             
-            # --- FORMATOS ---
             header_fmt = workbook.add_format({'bold': True, 'font_color': 'white', 'bg_color': '#00B050', 'border': 1, 'align': 'center'})
             cell_fmt = workbook.add_format({'border': 1})
             pct_fmt = workbook.add_format({'num_format': '0.00%', 'border': 1}) 
@@ -293,11 +265,9 @@ def save_excel_final(kpi_df, management_df, output_path):
                     
                     curr += 1
                     
-                    # --- NUEVO: Fila vacía después de AHT (Excluding Short Calls) ---
                     if ind == "AHT (Excluding Short Calls)":
                         curr += 1 
 
-                # --- NUEVO: 2 filas vacías al finalizar cada bucket ---
                 curr += 2 
 
             ws.set_column('A:E', 20)
@@ -314,7 +284,7 @@ def save_excel_final(kpi_df, management_df, output_path):
 
 def generate_report(in_folder, out_folder):
     start = datetime.now()
-    path_in, path_out = Path(in_folder), Path(out_folder) / FOLDER_CONFIG["output_folder"]
+    path_in, path_out = Path(in_folder), Path(out_folder)
     path_out.mkdir(parents=True, exist_ok=True)
     
     def load(sub):
@@ -323,7 +293,9 @@ def generate_report(in_folder, out_folder):
         return pl.read_csv(f[0], separator=";", infer_schema_length=10000, ignore_errors=True) if f else None
 
     assign, clients, mgmt = load("Asignacion"), load("ReporteClientes"), load("ReporteGestion")
-    if any(x is None for x in [assign, clients, mgmt]): return
+    if any(x is None for x in [assign, clients, mgmt]): 
+        print("❌ Error: No se encontraron todos los archivos CSV necesarios")
+        return
 
     mgmt = process_management(mgmt)
     dashboard = calculate_kpi_dashboard(assign, clients, mgmt)
