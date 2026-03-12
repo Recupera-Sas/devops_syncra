@@ -154,7 +154,6 @@ def process_batch_files(input_path, output_path):
         return None
 
     def get_random_date_from_column(df, date_column):
-        """Obtiene una fecha aleatoria de una columna del DataFrame"""
         try:
             if date_column in df.columns:
                 valid_dates = df.filter(pl.col(date_column).is_not_null()).select(date_column).to_series()
@@ -183,12 +182,6 @@ def process_batch_files(input_path, output_path):
         return None
 
     def format_seconds(seconds_value):
-        """
-        Formatea los segundos que pueden venir en diferentes formatos:
-        - Números con .0 (ej: 14.0)
-        - Números sin decimales (ej: 14)
-        - Formato HH:MM:SS (ej: 00:00:14)
-        """
         if seconds_value is None or pd.isna(seconds_value):
             return "0"
         
@@ -212,6 +205,21 @@ def process_batch_files(input_path, output_path):
         
         return seconds_str
 
+    def extract_cuenta_from_campo(cuenta_str):
+        if cuenta_str is None or pd.isna(cuenta_str):
+            return None
+        cuenta_str = str(cuenta_str).strip()
+        cuenta_limpia = cuenta_str.replace('.', '').replace('-', '')
+        return cuenta_limpia
+
+    def remove_57_prefix(telefono):
+        if telefono is None or pd.isna(telefono):
+            return None
+        telefono_str = str(telefono).strip()
+        if telefono_str.startswith('57'):
+            return telefono_str[2:]
+        return telefono_str
+
     for fname in data_payloads:
         fpath = os.path.join(input_path, fname)
         try:
@@ -229,12 +237,112 @@ def process_batch_files(input_path, output_path):
                     print(f"⚠️ Could not read {fname} with any encoding/separator, skipping")
                     continue
 
-            df.columns = [str(c).strip() for c in df.columns]
+            df.columns = [str(c).strip().replace('"', '') for c in df.columns]
             cols = df.columns
             res = None
             conditional = "Unknown"
 
-            if es_email_file and 'Canal' in cols:
+            if 'cuenta_real' in cols and 'Dato_Contacto' in cols and 'Resultado_llamada' in cols and 'Duracion' in cols and 'fecha_llamada' in cols and 'hora_llamada' in cols:
+                try:
+                    df_atria = df.with_columns([
+                        pl.col('cuenta_real').map_elements(extract_cuenta_from_campo, return_dtype=pl.Utf8).alias('cuenta_limpia')
+                    ])
+                    
+                    if mapping_df is not None:
+                        df_atria = df_atria.join(
+                            mapping_df, 
+                            left_on='cuenta_limpia', 
+                            right_on='Cuenta_Next', 
+                            how='inner'
+                        )
+                        
+                        if df_atria.height > 0:
+                            fecha_hora = pl.concat_str([
+                                pl.col('fecha_llamada').cast(pl.Utf8),
+                                pl.lit('T'),
+                                pl.col('hora_llamada').cast(pl.Utf8)
+                            ])
+                            
+                            fecha_hora_formateada = fecha_hora.map_elements(
+                                format_datetime_with_T, return_dtype=pl.Utf8
+                            )
+                            
+                            res = df_atria.select([
+                                (pl.col('Resultado_llamada').cast(pl.Utf8) + " - Duracion: " + 
+                                 pl.col('Duracion').cast(pl.Utf8).map_elements(format_seconds, return_dtype=pl.Utf8)).alias('gestion'),
+                                pl.lit("Caller ID rotativo").alias('usuario'),
+                                fecha_hora_formateada.alias('fechagestion'),
+                                pl.lit("Envio manual Syncra").alias('accion'),
+                                pl.lit("IAGEN ATRIA").alias('perfil'),
+                                pl.col('Dato_Contacto').cast(pl.Utf8).map_elements(remove_57_prefix, return_dtype=pl.Utf8).alias('demografico'),
+                                pl.col('Documento').cast(pl.Utf8).str.replace_all(r'\D', '').alias('identificacion'),
+                                (pl.col('cuenta_limpia').cast(pl.Utf8) + "-").alias('cuenta_promesa'),
+                                pl.lit("claro").alias('campana')
+                            ])
+                            conditional = "IAGEN ATRIA"
+                            print(f"   📊 ATRIA records found: {df_atria.height}")
+                        else:
+                            print(f"⚠️ No mapping matches found for ATRIA in {fname}")
+                    else:
+                        print(f"⚠️ No mapping file available for ATRIA processing in {fname}")
+                except Exception as e:
+                    print(f"⚠️ Error in ATRIA processing for {fname}: {e}")
+
+            if res is None and 'Resultado Gestion' in cols and 'Telefono' in cols and 'CUENTA' in cols:
+                try:
+                    fecha_col = safe_get_column(df, ['Fecha', 'FECHA', 'fecha', 'DATE', 'Date', 'date'])
+                    fecha_base = None
+                    
+                    if fecha_col:
+                        fecha_base = get_random_date_from_column(df, fecha_col)
+                    
+                    if fecha_base is None:
+                        fecha_base = extract_date_from_filename(fname)
+                    
+                    if fecha_base is None:
+                        fecha_base = datetime.now().strftime('%Y-%m-%dT11:00:00')
+                    
+                    df_iagen = df.with_columns([
+                        pl.col('CUENTA').map_elements(extract_cuenta_from_campo, return_dtype=pl.Utf8).alias('cuenta_limpia')
+                    ])
+                    
+                    if mapping_df is not None:
+                        df_iagen = df_iagen.join(
+                            mapping_df, 
+                            left_on='cuenta_limpia', 
+                            right_on='Cuenta_Next', 
+                            how='inner'
+                        )
+                        
+                        if df_iagen.height > 0:
+                            duration_col = safe_get_column(df_iagen, ['duration_call_sec', 'DURACION', 'Duracion'])
+                            if not duration_col:
+                                duration_col = 'duration_call_sec'
+                                if duration_col not in df_iagen.columns:
+                                    df_iagen = df_iagen.with_columns(pl.lit("0").alias(duration_col))
+                            
+                            res = df_iagen.select([
+                                (pl.col('Resultado Gestion').cast(pl.Utf8) + " - Duracion: " + 
+                                 pl.col(duration_col).cast(pl.Utf8).map_elements(format_seconds, return_dtype=pl.Utf8)).alias('gestion'),
+                                pl.lit("Caller ID rotativo").alias('usuario'),
+                                pl.lit(fecha_base).alias('fechagestion'),
+                                pl.lit("Envio manual Syncra").alias('accion'),
+                                pl.lit("IAGEN SERVICEBOT").alias('perfil'),
+                                pl.col('Telefono').cast(pl.Utf8).alias('demografico'),
+                                pl.col('Documento').cast(pl.Utf8).str.replace_all(r'\D', '').alias('identificacion'),
+                                (pl.col('cuenta_limpia').cast(pl.Utf8) + "-").alias('cuenta_promesa'),
+                                pl.lit("claro").alias('campana')
+                            ])
+                            conditional = "IAGEN SERVICEBOT"
+                            print(f"   📊 IAGEN records found: {df_iagen.height}")
+                        else:
+                            print(f"⚠️ No mapping matches found for IAGEN in {fname}")
+                    else:
+                        print(f"⚠️ No mapping file available for IAGEN processing in {fname}")
+                except Exception as e:
+                    print(f"⚠️ Error in IAGEN processing for {fname}: {e}")
+
+            if res is None and es_email_file and 'Canal' in cols:
                 try:
                     fecha_base = extract_date_from_filename(fname)
                     if fecha_base is None:
@@ -364,7 +472,6 @@ def process_batch_files(input_path, output_path):
                                 seconds_col = safe_get_column(joined, ['secounds', 'Segundos', 'DURACION', 'Duracion', 'duracion'])
                                 
                                 if seconds_col and fecha_formateada is not None and len(fecha_formateada) > 0:
-                                    # Crear la columna de gestión con valor por defecto si está vacía
                                     gestion_col = (
                                         pl.col('Mejor_Marcacion').cast(pl.Utf8) + 
                                         " - Duracion: " + pl.col(seconds_col).cast(pl.Utf8).map_elements(
@@ -372,7 +479,6 @@ def process_batch_files(input_path, output_path):
                                         )
                                     )
                                     
-                                    # Si la gestión está vacía o es nula, usar "No Contesta - Duracion: 0"
                                     gestion_col = pl.when(
                                         gestion_col.is_null() | (gestion_col == "")
                                     ).then(

@@ -15,7 +15,7 @@ def process_ranking_files(input_folder, output_file):
     
     cuenta_columns = ["raiz", "cuenta"]
     estado_columns = ["gestion", "recuperada", "estado"]
-    filter_columns = ["aliado", "casa", "casacobro", "agencia"]
+    filter_columns = ["aliado", "casa", "casas", "casacobro", "agencia"]
     servicios_column = "nservicios"
     pago_column = ["pago", "pago total"]
     datepayment_column = ["fechadepago"]
