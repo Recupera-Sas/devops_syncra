@@ -460,7 +460,6 @@ class Charge_DB(QtWidgets.QMainWindow):
             lit("").alias("43_")
         )
 
-        # Conditional correction logic (Equivalent to correction_nnny & Data_Root.withColumn("42_", when(...)))
         correction_nnny = (col("5_") == lit("Y")) | (col("6_") == lit("Y")) | (col("7_") == lit("Y"))
         correction_nnny = correction_nnny & (col("42_") == lit("Y"))
         
@@ -828,6 +827,13 @@ class Charge_DB(QtWidgets.QMainWindow):
             .otherwise(col("53_"))
             .alias("53_")
         )
+
+        Data_Root = Data_Root.with_columns([
+            pl.when(col("5_").is_null() | (~col("5_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("5_")).alias("5_"),
+            pl.when(col("6_").is_null() | (~col("6_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("6_")).alias("6_"),
+            pl.when(col("7_").is_null() | (~col("7_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("7_")).alias("7_"),
+            pl.when(col("42_").is_null() | (~col("42_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("42_")).alias("42_")
+        ])
 
         # --- Column "54_" (Cleaned '2_') ---
         # Equivalent to regexp_replace(col("2_"), "[.-]", "")
