@@ -64,7 +64,7 @@ def Renamed_Column(Data_Frame):
     Data_Frame = Data_Frame.withColumnRenamed("cant_servicios", "CANTIDAD SERVICIOS")
     Data_Frame = Data_Frame.withColumnRenamed("Tipo Base", "TIPO BASE")
 
-    Data_Frame = Data_Frame.select("IDENTI", "TELEFONO 1", "DOCUMENTO", "CRM_ORIGEN", "MARCA_ASIGNADA", "FLP", \
+    Data_Frame = Data_Frame.select("IDENTI", "TELEFONO 1", "CRM_ORIGEN", "MARCA_ASIGNADA", "DOCUMENTO", "FLP", \
                          "FECHA_ASIGNACION", "FECHA_CONTACTO", "MONTO_INICIAL", "marca2", "DESCUENTO", "tipo_pago","DIAS DE MORA", \
                             "RANKING STATUS", "CANTIDAD SERVICIOS", "NOMBRE CORTO", "Tipo de Linea", "TIPO BASE")
 
