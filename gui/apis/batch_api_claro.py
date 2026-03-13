@@ -209,7 +209,10 @@ def process_batch_files(input_path, output_path):
         if cuenta_str is None or pd.isna(cuenta_str):
             return None
         cuenta_str = str(cuenta_str).strip()
-        cuenta_limpia = cuenta_str.replace('.', '').replace('-', '')
+        if '-' in cuenta_str:
+            cuenta_limpia = cuenta_str.split('-')[0]
+        else:
+            cuenta_limpia = cuenta_str
         return cuenta_limpia
 
     def remove_57_prefix(telefono):
@@ -305,7 +308,6 @@ def process_batch_files(input_path, output_path):
                     df_iagen = df.with_columns([
                         pl.col('CUENTA').map_elements(extract_cuenta_from_campo, return_dtype=pl.Utf8).alias('cuenta_limpia')
                     ])
-                    
                     if mapping_df is not None:
                         df_iagen = df_iagen.join(
                             mapping_df, 
@@ -313,7 +315,6 @@ def process_batch_files(input_path, output_path):
                             right_on='Cuenta_Next', 
                             how='inner'
                         )
-                        
                         if df_iagen.height > 0:
                             duration_col = safe_get_column(df_iagen, ['duration_call_sec', 'DURACION', 'Duracion'])
                             if not duration_col:
@@ -529,7 +530,7 @@ def process_batch_files(input_path, output_path):
             output_df.write_csv(out_file, separator=';')
 
             try:
-                job_result = upload_batch_file(out_file)
+                job_result = None#upload_batch_file(out_file)
                 if job_result and job_result.get('jobId'):
                     job_id = job_result.get('jobId')
                     print(f"📤 File sent to API - Job ID: {job_id}")

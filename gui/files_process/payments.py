@@ -7,49 +7,38 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
 def clean_numeric_cta(value):
-    """Clean numeric account values by removing periods and splitting by comma."""
     if isinstance(value, str):
-        return value.replace('.', '').split(',')[0]  # Remove periods and take the first part if there's a comma
+        return value.replace('.', '').split(',')[0]
     return value
 
 def clean_numeric_amount(value):
-    """If a dot is found, replace it with a comma and return as string (not as a Python decimal/float)."""
     if isinstance(value, str):
         return value.replace('.', ',')
     return value
 
 def final_clean_numeric_amount(value):
-    """Clean numeric amount values by splitting on the first period and comma."""
     if isinstance(value, str):
-        return value.split('.')[0].split(',')[0]  # Take the first part before any period or comma
+        return value.split('.')[0].split(',')[0]
     return value
 
 def clean_date(value):
-    """Convert date strings to yyyy-mm-dd format, handling various formats and time components."""
     if isinstance(value, str):
-        # Split by space and take the first part to handle date with time
         date_part = value.split(' ')[0]
-        # If there is a colon in the string, split by colon and take the first part
         if ':' in date_part:
             date_part = date_part.split(':')[0]
-        # Attempt to parse and convert the date to yyyy-mm-dd format
         for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%Y-%m-%d %H:%M:%S", "%d/%m/%y", "%d-%m-%y"):
             try:
-                # Try to convert the date using the current format
                 parsed_date = datetime.strptime(date_part, fmt)
-                return parsed_date.strftime('%Y-%m-%d')  # Format date to yyyy-mm-dd
+                return parsed_date.strftime('%Y-%m-%d')
             except ValueError:
-                continue  # Try the next format
-    return value  # Return the original value if not a string or not parsable
+                continue
+    return value
 
 def process_txt(file_path):
-    """Process a TXT file and clean its data."""
     try:
-        # First try to detect the delimiter
         with open(file_path, 'r', encoding='utf-8') as f:
             first_line = f.readline()
         
-        # Determine the delimiter
         if '\t' in first_line:
             delimiter = '\t'
         elif '|' in first_line:
@@ -61,33 +50,28 @@ def process_txt(file_path):
         else:
             delimiter = ' '
         
-        # Try to read with different configurations
         try:
-            # First try with quotechar to handle quotes
             df = pd.read_csv(file_path, sep=delimiter, dtype=str, encoding='utf-8', quotechar='"')
         except:
-            # If it fails, try without quotechar
             df = pd.read_csv(file_path, sep=delimiter, dtype=str, encoding='utf-8')
-            
-        return clean_dataframe(df)  # Clean and return the DataFrame
+        
+        df.columns = df.columns.str.replace('"', '')
+        return clean_dataframe(df)
     except Exception as e:
         print(f"❌ Error processing TXT {file_path}: {e}")
         return None
 
 def process_csv(file_path):
-    """Process a CSV file and clean its data."""
     try:
         df = pd.read_csv(file_path, sep=';', dtype=str, encoding='utf-8', 
-                         skipinitialspace=True, on_bad_lines='skip')  # Read CSV file
-        return clean_dataframe(df)  # Clean and return the DataFrame
+                         skipinitialspace=True, on_bad_lines='skip')
+        df.columns = df.columns.str.replace('"', '')
+        return clean_dataframe(df)
     except Exception as e:
         print(f"❌ Error processing CSV {file_path}: {e}")
         return None
 
 def clean_dataframe(df):
-    """Clean the DataFrame by renaming columns and applying cleaning functions."""
-    # Rename and clean various columns in the DataFrame
-    
     if 'TIPO_OPERACION' in df.columns:
         df_filtrado = df[df['TIPO_OPERACION'] != "AJUSTE"]
         df = df_filtrado
@@ -134,15 +118,14 @@ def clean_dataframe(df):
         df = df[df['Codigo de Campaña'] == 'UNIF - RECUPERA SAS']
         df['Nombre Casa de Cobro'] = df['Nombre Casa de Cobro'].apply(clean_date)
         df = df.rename(columns={'Nombre Casa de Cobro': 'fecha'})    
-    return df[['obligacion', 'fecha', 'valor']]  # Return only the relevant columns
+    return df[['obligacion', 'fecha', 'valor']]
 
 def process_excel(file_path):
-    """Process an Excel file and clean its data."""
     try:
-        xls = pd.ExcelFile(file_path)  # Load the Excel file
+        xls = pd.ExcelFile(file_path)
         df_list = []
         for sheet in xls.sheet_names:
-            df = pd.read_excel(xls, sheet_name=sheet, dtype=str)  # Read each sheet into a DataFrame
+            df = pd.read_excel(xls, sheet_name=sheet, dtype=str)
             if sheet == 'PAGOS':
                 if 'CUSTCODE' in df.columns:
                     df['CUSTCODE'] = df['CUSTCODE'].str.replace('.', '', regex=False)
@@ -160,7 +143,7 @@ def process_excel(file_path):
                     df['MONTO_PAGO'] = df['MONTO_PAGO'].apply(clean_numeric_amount)
                     df = df.rename(columns={'MONTO_PAGO': 'valor'})
                     
-                df_list.append(df)  # Add the cleaned DataFrame to the list
+                df_list.append(df)
                 
             elif sheet == 'Hoja1':
                 if 'CUSTCODE' in df.columns:
@@ -179,33 +162,29 @@ def process_excel(file_path):
                     df['MONTO_PAGO'] = df['MONTO_PAGO'].apply(clean_numeric_amount)
                     df = df.rename(columns={'MONTO_PAGO': 'valor'})
                     
-                df_list.append(df)  # Add the cleaned DataFrame to the list
+                df_list.append(df)
                 
-        return pd.concat(df_list, ignore_index=True)  # Concatenate all DataFrames into one
+        return pd.concat(df_list, ignore_index=True)
     
     except Exception as e:
         print(f"❌ Error processing Excel {file_path}: {e}")
         return None
 
 def process_xls_password(file_path):
-    """Process an Excel file with password and clean its data."""
     try:
-        xls = pd.ExcelFile(file_path, password='RECUPERA-9996')  # Load the Excel file with password
+        xls = pd.ExcelFile(file_path, password='RECUPERA-9996')
         
-        df = pd.read_excel(xls, sheet_name='PAGOS', dtype=str)  # Read the 'PAGOS' sheet into a DataFrame
+        df = pd.read_excel(xls, sheet_name='PAGOS', dtype=str)
         df = df.rename(columns={'NUMERO_CREDITO': 'obligacion', 'FECHA': 'fecha', 'MONTO_PAGO': 'valor'})
-        #df['valor'] = df['valor'].str.split(',').str[0]  # Remove what goes after the comma
         
-        return df[['obligacion', 'fecha', 'valor']]  # Return only the relevant columns
+        return df[['obligacion', 'fecha', 'valor']]
     
     except Exception as e:
         print(f"❌ Error processing Excel with password {file_path}: {e}")
         return None
     
 def unify_payments(input_folder, output_folder):
-    """Unify payment data from various files into a single CSV file."""
     try:
-        # Recursively find all files in the input folder and its subfolders
         files = []
         for root, _, filenames in os.walk(input_folder):
             for f in filenames:
@@ -217,10 +196,9 @@ def unify_payments(input_folder, output_folder):
         
         df_list = []
         for file_path in files:
-            file_name = os.path.basename(file_path)  # Just get the file name
+            file_name = os.path.basename(file_path)
             print(f"🔄 Payments Processing: {file_name}", end=' - Registers: ')
 
-            # Processing by extension
             if file_name.endswith('.txt'):
                 df = process_txt(file_path)
 
@@ -237,53 +215,45 @@ def unify_payments(input_folder, output_folder):
                 continue
 
             if df is not None:
-                df['origen'] = file_name   # Add the source file name as a new column
-                print(f"📊 {len(df)}")  # Print the number of records processed
-                df_list.append(df)  # Add the cleaned DataFrame to the list
+                df['origen'] = file_name
+                print(f"📊 {len(df)}")
+                df_list.append(df)
         
         if not df_list:
             raise ValueError("📭 No valid data processed.")
         
-        # Concatenate all DataFrames, remove duplicates, and reset index
         final_df = pd.concat(df_list, ignore_index=True).drop_duplicates()
-        final_df['identificacion'] = ""  # Add empty columns for future use
+        final_df['identificacion'] = ""
         final_df['asesor'] = ""
         
-        # Generate output file name and path
         output_file = f'Pagos {datetime.now().strftime("%Y-%m-%d_%H-%M")}.csv'
         output_file_details = f'Crecimiento {datetime.now().strftime("%Y-%m-%d_%H-%M")}.csv'
         
-        # Construct the full path for the output folder
         output_folder_ = "---- Bases para CARGUE ----/" 
         output_path_folder = os.path.join(output_folder, output_folder_)
         
         output_folder_details = "---- Bases para CRUCE ----/" 
         output_path_folder_details = os.path.join(output_folder, output_folder_details)
         
-        # Ensure the output folder exists
         if not os.path.exists(output_path_folder):
             os.makedirs(output_path_folder)
         if not os.path.exists(output_path_folder_details):
             os.makedirs(output_path_folder_details)
         
-        # Construct the full path for the output file
         output_path = os.path.join(output_path_folder, output_file)
         output_path_details = os.path.join(output_path_folder_details, output_file_details)
         
-        # Now you can use output_path for your output file
         print(f"📁 Output file path: {output_path}")
         print(f"📁 Output file path: {output_path_details}")
         
-        # Convert 'valor' to numeric, fill NaNs, and filter out non-positive values
         final_df['valor'] = final_df['valor'].str.replace(',', '.')
         final_df['valor'] = pd.to_numeric(final_df['valor'], errors='coerce')
-        final_df['valor_decimal'] = final_df['valor']  # This will be float (with decimals)
+        final_df['valor_decimal'] = final_df['valor']
         final_df['valor_decimal'] = final_df['valor_decimal'].fillna(0)
         final_df = final_df[final_df['valor_decimal'] >= 0.01]
-        # Now 'valor_decimal' is a float column and will keep decimal values.
         
         final_df['fecha'] = pd.to_datetime(final_df['fecha'], errors='coerce')
-        details_df = final_df.copy()  # Create a copy for details
+        details_df = final_df.copy()
         
         final_df['valor'] = final_df['valor'].fillna(0).astype(int).astype(str)
         final_df = final_df[final_df['valor'].astype(int) > 0.01]
@@ -300,15 +270,11 @@ def unify_payments(input_folder, output_folder):
                         ((final_df['fecha'].dt.year == current_year) & 
                          (final_df['fecha'].dt.month >= current_month))]
         
-        # Save the final DataFrame to a CSV file
-    
         filtered_df[['obligacion', 'identificacion', 'fecha', 'valor', 'asesor']].to_csv(output_path, index=False, sep=';')
         
         details_df = details_df.drop_duplicates(subset=['obligacion', 'fecha', 'valor_decimal', 'origen'])
         details_df = details_df.sort_values(by='fecha')
         save_large_csv_chunks(details_df, output_path_details)
-        
-        # Save details_df to Excel in chunks of 1.040.000 rows per sheet
         
         print(f"✅ Data saved to {output_path} with {len(filtered_df)} records.")
         print(f"✅ Data saved to {output_path_details} with {len(details_df)} records.")

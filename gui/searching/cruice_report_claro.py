@@ -5,20 +5,15 @@ from pathlib import Path
 from datetime import datetime
 
 def clean_cuenta(cuenta_str):
-    """Función para limpiar números de cuenta de manera consistente"""
     if cuenta_str is None:
         return ""
     
-    # Convertir a string y quitar espacios
     cuenta = str(cuenta_str).strip()
     
-    # Quitar guiones y puntos
     cuenta = re.sub(r'[-.]', '', cuenta)
     
-    # Quitar ceros a la izquierda
     cuenta = re.sub(r'^0+', '', cuenta)
     
-    # Si después de quitar ceros queda vacío, retornar '0'
     if cuenta == "":
         return "0"
     
@@ -75,7 +70,6 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     print("🔄 Procesando cruce...")
     
-    # Identificar columnas en df_next
     cuenta_col = None
     for col in df_next.columns:
         if col.lower() == 'cuenta':
@@ -94,20 +88,17 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_next_col is None:
         return "❌ No se encontró la columna 'cuenta_next' en el archivo de cruce"
     
-    # Limpiar cuentas en df_next
     print("🧹 Limpiando cuentas en archivo NEXT...")
     df_next = df_next.with_columns([
         pl.col(cuenta_col).alias('cuenta_original'),
         pl.col(cuenta_next_col).map_elements(clean_cuenta, return_dtype=pl.Utf8).alias('cuenta_next_clean')
     ])
     
-    # Mostrar algunas cuentas limpias para verificación
     print("📊 Muestra de cuentas NEXT limpias:")
     sample_next = df_next.select(['cuenta_next_clean']).head(5)
     for row in sample_next.rows():
         print(f"   → {row[0]}")
     
-    # Identificar columna en df_promesa
     cuenta_promesa_col = None
     for col in df_promesa.columns:
         if col.lower() == 'cuenta_promesa':
@@ -117,19 +108,16 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_promesa_col is None:
         return "❌ No se encontró la columna 'cuenta_promesa' en el archivo base"
     
-    # Limpiar cuentas en df_promesa
     print("🧹 Limpiando cuentas en archivo PROMESA...")
     df_promesa = df_promesa.with_columns([
         pl.col(cuenta_promesa_col).map_elements(clean_cuenta, return_dtype=pl.Utf8).alias('cuenta_promesa_clean')
     ])
     
-    # Mostrar algunas cuentas limpias para verificación
     print("📊 Muestra de cuentas PROMESA limpias:")
     sample_promesa = df_promesa.select(['cuenta_promesa_clean']).head(5)
     for row in sample_promesa.rows():
         print(f"   → {row[0]}")
     
-    # Realizar el cruce
     print("🔄 Realizando cruce de cuentas...")
     df_merged = df_promesa.join(
         df_next,
@@ -140,7 +128,6 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     print(f"📊 Registros cruzados: {df_merged.height:,}")
     
-    # Verificar si hay cuentas que no cruzaron
     cuentas_next = set(df_next['cuenta_next_clean'].to_list())
     cuentas_promesa = set(df_promesa['cuenta_promesa_clean'].to_list())
     cuentas_cruzadas = set(df_merged['cuenta_promesa_clean'].to_list())
@@ -313,12 +300,19 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     output_correo = os.path.join(output_folder, f"reporte_correos_{timestamp}.csv")
     df_correo.write_csv(output_correo, separator=';')
     
+    df_iagen = df_final.filter(
+        pl.col("nombre_asesor").str.to_lowercase().str.contains("iagen")
+    )
+    output_iagen = os.path.join(output_folder, f"reporte_iagen_{timestamp}.csv")
+    df_iagen.write_csv(output_iagen, separator=';')
+    
     print(f"✅ Procesado: {df_final.height:,} registros totales")
     print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
     print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
     print(f"   🔹 Blasters: {df_blasters.height:,}")
     print(f"   🔹 Mensajería: {df_mensajes.height:,}")
     print(f"   🔹 Correos detectados: {df_correo.height:,}")
+    print(f"   🔹 IAGEN detectados: {df_iagen.height:,}")
     print(f"💾 Archivos guardados:")
     print(f"   📄 Completo: {output_completo}")
     print(f"   📄 Blasters: {output_blasters}")
@@ -326,6 +320,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     print(f"   📄 No Efectivo: {output_no_efectivo}")
     print(f"   📄 Mensajes: {output_mensajes}")
     print(f"   📄 Correos: {output_correo}")
+    print(f"   📄 IAGEN: {output_iagen}")
     
     return procesar_archivo_final(output_folder, output_folder)
 
