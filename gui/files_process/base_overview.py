@@ -470,6 +470,12 @@ class Charge_DB(QtWidgets.QMainWindow):
             .alias("42_")
         )
 
+        Data_Root = Data_Root.with_columns([
+            pl.when(col("5_").is_null() | (~col("5_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("5_")).alias("5_"),
+            pl.when(col("6_").is_null() | (~col("6_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("6_")).alias("6_"),
+            pl.when(col("7_").is_null() | (~col("7_").is_in(["Y", "N"]))).then(lit("N")).otherwise(col("7_")).alias("7_"),
+        ])
+
         # --- Final Column Selection and Ordering ---
         columns_to_list = ["1_", "2_", "3_", "4_", "5_", "6_", "7_", "8_", "9_", "10_", "11_", "12_", 
                         "13_", "14_", "15_", "16_", "17_", "18_", "50_", "Telefono 1", "Telefono 2", "Telefono 3", 
