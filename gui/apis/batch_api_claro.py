@@ -530,7 +530,7 @@ def process_batch_files(input_path, output_path):
             output_df.write_csv(out_file, separator=';')
 
             try:
-                job_result = None#upload_batch_file(out_file)
+                job_result = upload_batch_file(out_file)
                 if job_result and job_result.get('jobId'):
                     job_id = job_result.get('jobId')
                     print(f"📤 File sent to API - Job ID: {job_id}")
