@@ -123,6 +123,8 @@ def process_call_files(input_folder: str, output_folder: str):
         .then(pl.lit("SMS"))
         .when(pl.col('perfil').str.contains("CORREO"))
         .then(pl.lit("EMAIL"))
+        .when(pl.col('perfil').str.contains("IAGEN"))
+        .then(pl.lit("IAGEN"))
         .otherwise(pl.col('perfil'))
         .alias('herramienta')
     ])
