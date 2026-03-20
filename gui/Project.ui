@@ -2922,7 +2922,7 @@ color: rgb(121, 121, 121);</string>
         <property name="geometry">
          <rect>
           <x>310</x>
-          <y>370</y>
+          <y>440</y>
           <width>651</width>
           <height>20</height>
          </rect>
@@ -3366,60 +3366,13 @@ QPushButton:pressed {
          </size>
         </property>
        </widget>
-       <widget class="QCommandLinkButton" name="commandLinkButton_22">
-        <property name="geometry">
-         <rect>
-          <x>710</x>
-          <y>410</y>
-          <width>231</width>
-          <height>41</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <family>Segoe UI</family>
-          <pointsize>10</pointsize>
-          <weight>50</weight>
-          <italic>false</italic>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(160, 160, 160); /* Borde gris claro */
-    border-radius: 8px;
-}
-
-/* Al presionar */
-QPushButton:pressed {
-    background-color: rgb(230, 230, 230); /* Gris suave al presionar */
-    border: 2px solid rgb(100, 100, 100); /* Borde más oscuro */
-    border-radius: 8px;
-    color: rgb(0, 0, 0);
-}</string>
-        </property>
-        <property name="text">
-         <string> Consolidar data de insignias</string>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>../resources/ico/insignias.png</normaloff>../resources/ico/insignias.png</iconset>
-        </property>
-        <property name="iconSize">
-         <size>
-          <width>20</width>
-          <height>20</height>
-         </size>
-        </property>
-       </widget>
        <widget class="QGroupBox" name="Group_Selection_Starter_23">
         <property name="geometry">
          <rect>
           <x>320</x>
           <y>70</y>
           <width>271</width>
-          <height>171</height>
+          <height>361</height>
          </rect>
         </property>
         <property name="styleSheet">
@@ -3434,7 +3387,7 @@ QPushButton:pressed {
            <x>10</x>
            <y>30</y>
            <width>241</width>
-           <height>121</height>
+           <height>311</height>
           </rect>
          </property>
          <property name="layoutDirection">
@@ -3462,14 +3415,14 @@ QPushButton:pressed {
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>-403</y>
+            <y>0</y>
             <width>222</width>
-            <height>522</height>
+            <height>552</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
-           <item row="5" column="0">
-            <widget class="QPushButton" name="pushButton_26">
+           <item row="6" column="0">
+            <widget class="QPushButton" name="pushButton_12">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3492,35 +3445,7 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Consolidar Resultados Wisebot</string>
-             </property>
-            </widget>
-           </item>
-           <item row="18" column="0">
-            <widget class="QPushButton" name="pushButton_31">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Reporte Daily Payjoy</string>
+              <string>Consolidar Resultados IPCom</string>
              </property>
             </widget>
            </item>
@@ -3552,8 +3477,8 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="6" column="0">
-            <widget class="QPushButton" name="pushButton_12">
+           <item row="18" column="0">
+            <widget class="QPushButton" name="pushButton_31">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3576,7 +3501,7 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Consolidar Resultados IPCom</string>
+              <string>Reporte Daily Payjoy</string>
              </property>
             </widget>
            </item>
@@ -3608,34 +3533,6 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="20" column="0">
-            <widget class="QPushButton" name="pushButton_35">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Generar Reporte Batch Claro</string>
-             </property>
-            </widget>
-           </item>
            <item row="11" column="0">
             <widget class="QPushButton" name="pushButton_27">
              <property name="font">
@@ -3664,6 +3561,34 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
+           <item row="21" column="0">
+            <widget class="QPushButton" name="pushButton_35">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Generar Reporte Batch Claro</string>
+             </property>
+            </widget>
+           </item>
            <item row="12" column="0">
             <widget class="QPushButton" name="pushButton_54">
              <property name="font">
@@ -3689,6 +3614,34 @@ QPushButton:pressed
              </property>
              <property name="text">
               <string>Convertir CSV a Parquet</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QPushButton" name="pushButton_24">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Exportar Data de Telemática</string>
              </property>
             </widget>
            </item>
@@ -3748,8 +3701,8 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
-            <widget class="QPushButton" name="pushButton_24">
+           <item row="19" column="0">
+            <widget class="QPushButton" name="pushButton_34">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3772,7 +3725,7 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Exportar Data de Telemática</string>
+              <string>Procesar Batch CLARO por API</string>
              </property>
             </widget>
            </item>
@@ -3832,35 +3785,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="19" column="0">
-            <widget class="QPushButton" name="pushButton_34">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Procesar Batch por API</string>
-             </property>
-            </widget>
-           </item>
-           <item row="21" column="0">
+           <item row="22" column="0">
             <widget class="QPushButton" name="pushButton_36">
              <property name="font">
               <font>
@@ -3916,7 +3841,7 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="22" column="0">
+           <item row="23" column="0">
             <widget class="QPushButton" name="pushButton_37">
              <property name="font">
               <font>
@@ -3944,26 +3869,72 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
+           <item row="5" column="0">
+            <widget class="QPushButton" name="pushButton_26">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Consolidar Resultados Wisebot</string>
+             </property>
+            </widget>
+           </item>
+           <item row="20" column="0">
+            <widget class="QPushButton" name="pushButton_38">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Procesar Batch OTRAS por API</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </widget>
        </widget>
-       <widget class="QGraphicsView" name="graphicsView_2">
-        <property name="geometry">
-         <rect>
-          <x>320</x>
-          <y>410</y>
-          <width>361</width>
-          <height>121</height>
-         </rect>
-        </property>
-       </widget>
        <widget class="QCommandLinkButton" name="commandLinkButton_23">
         <property name="geometry">
          <rect>
-          <x>710</x>
-          <y>510</y>
-          <width>231</width>
+          <x>730</x>
+          <y>470</y>
+          <width>211</width>
           <height>41</height>
          </rect>
         </property>
@@ -3992,7 +3963,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string> Consolidar toques por cuenta</string>
+         <string>Toques por cuenta (Claro)</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4004,58 +3975,6 @@ QPushButton:pressed {
           <height>20</height>
          </size>
         </property>
-       </widget>
-       <widget class="QComboBox" name="comboBox_Selected_Process_2">
-        <property name="geometry">
-         <rect>
-          <x>720</x>
-          <y>570</y>
-          <width>211</width>
-          <height>22</height>
-         </rect>
-        </property>
-        <property name="font">
-         <font>
-          <family>Bahnschrift Light</family>
-          <pointsize>10</pointsize>
-          <weight>3</weight>
-          <italic>false</italic>
-          <bold>false</bold>
-         </font>
-        </property>
-        <property name="styleSheet">
-         <string notr="true">font: 25 10pt &quot;Bahnschrift Light&quot;;</string>
-        </property>
-        <item>
-         <property name="text">
-          <string>--- Seleccione opción toques</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>TODOS</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>BOT</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>EMAIL</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>IVR</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>SMS</string>
-         </property>
-        </item>
        </widget>
        <widget class="QCommandLinkButton" name="commandLinkButton_24">
         <property name="geometry">
@@ -4107,9 +4026,9 @@ QPushButton:pressed {
        <widget class="QCommandLinkButton" name="commandLinkButton_25">
         <property name="geometry">
          <rect>
-          <x>710</x>
-          <y>460</y>
-          <width>231</width>
+          <x>730</x>
+          <y>520</y>
+          <width>211</width>
           <height>41</height>
          </rect>
         </property>
@@ -4138,7 +4057,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string> Validar información en Lumina</string>
+         <string>Abrir LuminaSystems (Web)</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4154,9 +4073,9 @@ QPushButton:pressed {
        <widget class="Line" name="line_Vertical_Tittle_6">
         <property name="geometry">
          <rect>
-          <x>310</x>
+          <x>610</x>
           <y>250</y>
-          <width>651</width>
+          <width>351</width>
           <height>20</height>
          </rect>
         </property>
@@ -4167,9 +4086,9 @@ QPushButton:pressed {
        <widget class="QCommandLinkButton" name="commandLinkButton_27">
         <property name="geometry">
          <rect>
-          <x>320</x>
-          <y>270</y>
-          <width>231</width>
+          <x>810</x>
+          <y>380</y>
+          <width>141</width>
           <height>41</height>
          </rect>
         </property>
@@ -4203,7 +4122,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string>Dataframe de data estructurada</string>
+         <string>Data estructurada</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4219,9 +4138,9 @@ QPushButton:pressed {
        <widget class="QCommandLinkButton" name="commandLinkButton_28">
         <property name="geometry">
          <rect>
-          <x>320</x>
-          <y>320</y>
-          <width>231</width>
+          <x>610</x>
+          <y>380</y>
+          <width>181</width>
           <height>41</height>
          </rect>
         </property>
@@ -4255,7 +4174,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string>Dataframe de demográficos</string>
+         <string>Dataframe demográficos</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4271,9 +4190,9 @@ QPushButton:pressed {
        <widget class="QCommandLinkButton" name="commandLinkButton_29">
         <property name="geometry">
          <rect>
-          <x>570</x>
-          <y>270</y>
-          <width>231</width>
+          <x>610</x>
+          <y>280</y>
+          <width>181</width>
           <height>41</height>
          </rect>
         </property>
@@ -4307,7 +4226,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string>Dataframe de toques telemática</string>
+         <string>Dataframe de toques</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4323,9 +4242,9 @@ QPushButton:pressed {
        <widget class="QCommandLinkButton" name="commandLinkButton_30">
         <property name="geometry">
          <rect>
-          <x>570</x>
-          <y>320</y>
-          <width>231</width>
+          <x>610</x>
+          <y>330</y>
+          <width>181</width>
           <height>41</height>
          </rect>
         </property>
@@ -4359,7 +4278,7 @@ QPushButton:pressed {
 }</string>
         </property>
         <property name="text">
-         <string>Base consolidada de Datalake</string>
+         <string>Consolidado de Datalake</string>
         </property>
         <property name="icon">
          <iconset>
@@ -4376,7 +4295,7 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>820</x>
-          <y>280</y>
+          <y>290</y>
           <width>61</width>
           <height>22</height>
          </rect>
@@ -4392,7 +4311,7 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>820</x>
-          <y>330</y>
+          <y>340</y>
           <width>61</width>
           <height>22</height>
          </rect>
@@ -4408,7 +4327,7 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>910</x>
-          <y>270</y>
+          <y>280</y>
           <width>41</width>
           <height>41</height>
          </rect>
@@ -4424,7 +4343,7 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>910</x>
-          <y>320</y>
+          <y>330</y>
           <width>41</width>
           <height>41</height>
          </rect>
@@ -4440,8 +4359,8 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>320</x>
-          <y>550</y>
-          <width>161</width>
+          <y>470</y>
+          <width>181</width>
           <height>41</height>
          </rect>
         </property>
@@ -4491,7 +4410,7 @@ QPushButton:pressed {
         <property name="geometry">
          <rect>
           <x>510</x>
-          <y>550</y>
+          <y>470</y>
           <width>161</width>
           <height>41</height>
          </rect>
@@ -4536,6 +4455,19 @@ QPushButton:pressed {
           <width>20</width>
           <height>20</height>
          </size>
+        </property>
+       </widget>
+       <widget class="Line" name="line_Horizontal_2">
+        <property name="geometry">
+         <rect>
+          <x>700</x>
+          <y>450</y>
+          <width>31</width>
+          <height>131</height>
+         </rect>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
         </property>
        </widget>
       </widget>
@@ -6177,7 +6109,7 @@ QPushButton:pressed {
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>222</width>
+            <width>193</width>
             <height>192</height>
            </rect>
           </property>

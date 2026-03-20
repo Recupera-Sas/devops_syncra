@@ -4,7 +4,7 @@ import bigdata.touch_ai
 import bigdata.union_datalakes_claro
 from gui.reports import report_batch_count
 from gui.searching import cruice_demographic, efecty_blaster
-from gui.apis import batch_api_claro
+from gui.apis import batch_api_claro, batch_api_others_campaigns
 import gui.reports.batch_cruice
 from gui.searching import cruice_report_claro
 import gui.union_like_powershell
@@ -18,7 +18,6 @@ import shutil
 import cloud.insert_firebase
 import cloud.conversion_csv_to_json
 import cloud.conversion_csv_to_parquet
-import gui.insignias
 import gui.files_process.payments
 import gui.reports.daily_payjoy
 import gui.files_process.ranking_read
@@ -251,7 +250,6 @@ class Init_APP():
         self.process_data.pushButton_22.clicked.connect(self.folder_files_cruice_batch_claro)
         
         self.process_data.commandLinkButton_20.clicked.connect(self.folder_union_excel)
-        self.process_data.commandLinkButton_22.clicked.connect(self.folder_union_insignias)
         self.process_data.commandLinkButton_23.clicked.connect(self.read_folder_resources)
         
         self.process_data.commandLinkButton_27.clicked.connect(self.exec_claro_structure_df)
@@ -271,6 +269,7 @@ class Init_APP():
         self.process_data.pushButton_33.clicked.connect(self.exec_claro_blaster)
         self.process_data.pushButton_34.clicked.connect(self.exec_batch_claro)
         self.process_data.pushButton_35.clicked.connect(self.exec_report_batch_claro)
+        self.process_data.pushButton_38.clicked.connect(self.exec_batch_otras_campanas)
         self.process_data.pushButton_36.clicked.connect(self.exec_report_count_batch_claro)
         self.process_data.pushButton_37.clicked.connect(self.exec_report_cruice_demographic_claro)
         self.process_data.pushButton_14.clicked.connect(self.copy_schema_campaings)
@@ -1256,36 +1255,6 @@ class Init_APP():
             Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
             Mbox_File_Error.exec()
             
-    def folder_union_insignias(self):
-
-        type_process = "folder"
-        
-        self.validation_data_folders(type_process)
-        self.digit_partitions_FOLDER()
-
-        if self.folder_path_IVR != None:
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("Procesando")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
-            Mbox_In_Process.exec()
-            
-            gui.insignias.read_files_insignias(self.folder_path_IVR, self.folder_path)
-
-            Mbox_In_Process = QMessageBox() 
-            Mbox_In_Process.setWindowTitle("")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Insignias generadas exitosamente.")
-            Mbox_In_Process.exec()
-        
-        else:
-            Mbox_File_Error = QMessageBox()
-            Mbox_File_Error.setWindowTitle("Error de procesamiento")
-            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
-            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
-            Mbox_File_Error.exec()
-
     def folder_bot_ipcom(self):
 
         type_process = "folder"
@@ -2181,6 +2150,44 @@ class Init_APP():
 
             folder_path_bg = f"{self.folder_path}"
             resultado = batch_api_claro.process_batch_files(self.folder_path_IVR, folder_path_bg)
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Resultado")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+
+            if "Job ID:" in resultado:
+                Mbox_In_Process.setText(f"{resultado}")
+            elif "File saved at:" in resultado and "Upload failed" in resultado:
+                Mbox_In_Process.setText(f"⚠️ {resultado}")
+            else:
+                Mbox_In_Process.setText(resultado)
+
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
+            Mbox_File_Error.exec()
+
+    def exec_batch_otras_campanas(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
+            Mbox_In_Process.exec()
+
+            folder_path_bg = f"{self.folder_path}"
+            resultado = batch_api_others_campaigns.process_batch_files(self.folder_path_IVR, folder_path_bg)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("Resultado")

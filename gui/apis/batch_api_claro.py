@@ -399,7 +399,7 @@ def process_batch_files(input_path, output_path):
                     
                     res = df.select([
                         pl.col('SMS').cast(pl.Utf8).alias('gestion'),
-                        pl.lit("87910__anthony.quiva239").alias('usuario'),
+                        pl.lit("87910__coordinador.operativo000").alias('usuario'),
                         pl.lit(dt_str).alias('fechagestion'),
                         pl.lit("Envio manual Syncra").alias('accion'),
                         pl.lit("MENSAJERIA SAEM").alias('perfil'),
