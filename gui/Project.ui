@@ -4470,6 +4470,108 @@ QPushButton:pressed {
          <enum>Qt::Vertical</enum>
         </property>
        </widget>
+       <widget class="QCommandLinkButton" name="commandLinkButton_34">
+        <property name="geometry">
+         <rect>
+          <x>320</x>
+          <y>530</y>
+          <width>181</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <family>Segoe UI</family>
+          <pointsize>8</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">/* Estado normal */
+QPushButton {
+    font-weight: bold;     /* Negrita */
+}
+
+/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(160, 160, 160); /* Borde gris claro */
+    border-radius: 8px;
+}
+
+/* Al presionar */
+QPushButton:pressed {
+    background-color: rgb(230, 230, 230); /* Gris suave al presionar */
+    border: 2px solid rgb(100, 100, 100); /* Borde más oscuro */
+    border-radius: 8px;
+    color: rgb(0, 0, 0);
+}</string>
+        </property>
+        <property name="text">
+         <string>Abrir chat de Mike</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../resources/ico/sharepoint.png</normaloff>../resources/ico/sharepoint.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </widget>
+       <widget class="QCommandLinkButton" name="commandLinkButton_36">
+        <property name="geometry">
+         <rect>
+          <x>510</x>
+          <y>530</y>
+          <width>161</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <family>Segoe UI</family>
+          <pointsize>8</pointsize>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">/* Estado normal */
+QPushButton {
+    font-weight: bold;     /* Negrita */
+}
+
+/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(160, 160, 160); /* Borde gris claro */
+    border-radius: 8px;
+}
+
+/* Al presionar */
+QPushButton:pressed {
+    background-color: rgb(230, 230, 230); /* Gris suave al presionar */
+    border: 2px solid rgb(100, 100, 100); /* Borde más oscuro */
+    border-radius: 8px;
+    color: rgb(0, 0, 0);
+}</string>
+        </property>
+        <property name="text">
+         <string>Abrir programador</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>../resources/ico/sharepoint.png</normaloff>../resources/ico/sharepoint.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>20</width>
+          <height>20</height>
+         </size>
+        </property>
+       </widget>
       </widget>
       <widget class="QWidget" name="Resources">
        <attribute name="title">
@@ -6109,7 +6211,7 @@ QPushButton:pressed {
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>193</width>
+            <width>222</width>
             <height>192</height>
            </rect>
           </property>
