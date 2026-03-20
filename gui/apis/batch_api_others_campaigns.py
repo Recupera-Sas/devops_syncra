@@ -9,10 +9,22 @@ def process_batch_files(input_path, output_path):
     print(f"🔍 Scanning folder: {input_path}...")
     files = [f for f in os.listdir(input_path) if f.endswith('.csv')]
     
+    campaigns = [
+        'Sms_YaDinero',
+        'Sms_Puntored',
+        'Sms_Payjoy',
+    ]
+    
     final_dfs = []
 
     for fname in files:
-        if 'Sms_YaDinero' in fname:
+        should_process = False
+        for campaign in campaigns:
+            if campaign in fname:
+                should_process = True
+                break
+        
+        if should_process:
             fpath = os.path.join(input_path, fname)
             
             try:
