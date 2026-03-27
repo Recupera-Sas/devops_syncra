@@ -65,7 +65,7 @@ def Renamed_Column(Data_Frame):
     Data_Frame = Data_Frame.withColumnRenamed("Tipo Base", "TIPO BASE")
 
     Data_Frame = Data_Frame.select("IDENTI", "TELEFONO 1", "MARCA_ASIGNADA", "CRM_ORIGEN", "DOCUMENTO", "FLP", \
-                         "FECHA_ASIGNACION", "FECHA_CONTACTO", "MONTO_INICIAL", "marca2", "DESCUENTO", "tipo_pago","DIAS DE MORA", \
+                         "FECHA_ASIGNACION", "FECHA_CONTACTO", "MONTO_INICIAL", "marca2", "DESCUENTO", "tipo_pago","porcentaje", "DIAS DE MORA", \
                             "RANKING STATUS", "CANTIDAD SERVICIOS", "NOMBRE CORTO", "Tipo de Linea", "TIPO BASE")
 
     return Data_Frame
@@ -124,7 +124,7 @@ def IVR_Process (Data_, Directory_to_Save, partitions, filter_brands, filter_ori
         when(((col("tipo_pago").isNull()) | (col("tipo_pago") == "")), lit("Sin Pago"))
         .otherwise(col("tipo_pago")))
     
-    Data_ = Data_.filter(col("tipo_pago") != "Pago Parcial")
+    #Data_ = Data_.filter(col("tipo_pago") != "Pago Parcial")
     
     Data_ = Data_.withColumn(
         "fechagestion_contactodirecto", 
@@ -160,7 +160,7 @@ def IVR_Process (Data_, Directory_to_Save, partitions, filter_brands, filter_ori
 
     Data_ = Data_.select("Dato_Contacto", "Telefono 2", "Telefono 3", "**", "identificacion", "origen", "**2", "cuenta", \
                          "marca", "fecha_vencimiento", "fecha_asignacion", "fechagestion_contactodirecto", "Mod_init_cta", \
-                         "marca2", "descuento", "tipo_pago", "nombrecompleto", "estado_ranking", "cant_servicios", "Tipo Base")
+                         "marca2", "descuento", "tipo_pago", "porcentaje", "nombrecompleto", "estado_ranking", "cant_servicios", "Tipo Base")
     
     Data_ = Data_.withColumn("Cruce_Cuentas", concat(col("cuenta"), lit("-"), col("Dato_Contacto")))
     Data_ = Data_.dropDuplicates(["Cruce_Cuentas"])
@@ -210,7 +210,7 @@ def IVR_Saem(DataFrame, Directory_to_Save, partitions):
     DataFrame = DataFrame.withColumnRenamed("marca2", "MARCA 2")
 
     DataFrame = DataFrame.select("email", "identificacion", "nombre", "telefono", "cuenta", "saldo",
-                         "CRM", "MARCA", "FLP", "FECHA_ASIGNACION", "FECHA_CONTACTO", "MARCA 2", "DESCUENTO", "tipo_pago", 
+                         "CRM", "MARCA", "FLP", "FECHA_ASIGNACION", "FECHA_CONTACTO", "MARCA 2", "DESCUENTO", "tipo_pago", "porcentaje", 
                          "DIAS DE MORA", "Tipo de Linea", "RANKING STATUS", "CANTIDAD SERVICIOS", "TIPO BASE")
 
     return DataFrame
