@@ -45,8 +45,8 @@ COLUMNS_SMS_MASIVIAN = [
 ]
 
 COLUMNS_IVR_IPCOM = [
-    'dst party id', 'account name', 'costo', 'país del código', 'src party id', 'subscriber name',
-    'tarifa', 'tiempo facturado', 'nombre del código', 'leg id', 'connect time'
+    'dst party id', 'account name', 'cost', 'dst code country', 'src party id', 'subscriber name',
+    'rate', 'billed volume', 'dst code name', 'leg id', 'connect time'
 ]
 
 COLUMNS_WISEBOT_BASE = ["campaña", "fecha_estado_final", "rut", "telefono", "estado_llamada", "tiempo_llamada"]
@@ -123,29 +123,45 @@ def _read_and_normalize_excel_data(file_path):
 
 def _read_and_normalize_csv_data(file_path):
     encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-    
+
     for encoding in encodings:
         try:
-            with open(file_path, 'r', encoding=encoding) as f:
+            with open(file_path, 'r', encoding=encoding, errors='ignore') as f:
                 first_line = f.readline()
-            
+
             comma_count = first_line.count(',')
             semicolon_count = first_line.count(';')
             sep = ';' if semicolon_count > comma_count else ','
-            
-            df = pd.read_csv(file_path, sep=sep, encoding=encoding)
+
+            df = pd.read_csv(
+                file_path,
+                sep=sep,
+                encoding=encoding,
+                engine='python',
+                on_bad_lines='skip'  # 🔥 CLAVE
+            )
+
+            if df.empty:
+                continue
+
             df.columns = normalize_columns(df.columns)
             return df
-            
-        except (UnicodeDecodeError, pd.errors.ParserError):
+
+        except Exception:
             continue
-    
+
     try:
-        df = pd.read_csv(file_path, sep=None, engine='python', encoding_errors='ignore')
+        df = pd.read_csv(
+            file_path,
+            sep=',',
+            engine='python',
+            encoding_errors='ignore',
+            on_bad_lines='skip'
+        )
         df.columns = normalize_columns(df.columns)
         return df
     except Exception as e:
-        raise ValueError(f"No se pudo leer el archivo {file_path}: {str(e)}")
+        raise ValueError(f"No se pudo leer el archivo {file_path}: {e}")
 
 def process_sms_saem(file_path, present_headers):
     try:
@@ -239,12 +255,12 @@ def process_ivr_ipcom(file_path, present_headers):
         df = _read_and_normalize_csv_data(file_path)
         df['source_file_type'] = 'IVR_IPCOM'
 
-        required_cols = ['connect time', 'tiempo facturado', 'account name', 'costo']
+        required_cols = ['connect time', 'billed volume', 'account name', 'costo']
         
         if not all(col in df.columns for col in required_cols):
             return df
 
-        df['ejecutados'] = pd.to_numeric(df['tiempo facturado'], errors='coerce').fillna(0)
+        df['ejecutados'] = pd.to_numeric(df['billed volume'], errors='coerce').fillna(0)
         df['costo'] = pd.to_numeric(df['costo'], errors='coerce').fillna(0)
         df['fecha programada'] = pd.to_datetime(df['connect time'], errors='coerce')
         df['fecha_programada_dia'] = df['fecha programada'].dt.floor('h')

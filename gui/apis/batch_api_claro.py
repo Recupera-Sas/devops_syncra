@@ -411,6 +411,67 @@ def process_batch_files(input_path, output_path):
                     conditional = "SMS Saem"
                 except Exception as e:
                     print(f"⚠️ Error in SMS processing for {fname}: {e}")
+            
+            if (
+                res is None
+                and 'IDENTI' in cols
+                and 'DOCUMENTO' in cols
+                and 'disposition' in cols
+                and 'last_attempt' in cols
+            ):
+                try:
+                    telefono_col = safe_get_column(df, ['phone', 'TELEFONO 1', 'telefono'])
+                    duracion_col = safe_get_column(df, ['duration', 'DURATION', 'duracion'])
+
+                    df_ipcom = df.with_columns([
+                        pl.col('IDENTI').cast(pl.Utf8).alias('cuenta_promesa_base'),
+                        pl.col('DOCUMENTO').cast(pl.Utf8).str.replace_all(r'\D', '').alias('identificacion_limpia'),
+                        pl.col('last_attempt').map_elements(
+                            format_datetime_with_T, return_dtype=pl.Utf8
+                        ).alias('fechagestion_fmt')
+                    ])
+
+                    if telefono_col:
+                        df_ipcom = df_ipcom.with_columns(
+                            pl.col(telefono_col)
+                            .cast(pl.Utf8)
+                            .map_elements(remove_57_prefix, return_dtype=pl.Utf8)
+                            .alias('telefono_limpio')
+                        )
+                    else:
+                        df_ipcom = df_ipcom.with_columns(pl.lit(None).alias('telefono_limpio'))
+
+                    if duracion_col:
+                        df_ipcom = df_ipcom.with_columns(
+                            pl.col(duracion_col)
+                            .cast(pl.Utf8)
+                            .map_elements(format_seconds, return_dtype=pl.Utf8)
+                            .alias('duracion_fmt')
+                        )
+                    else:
+                        df_ipcom = df_ipcom.with_columns(pl.lit("0").alias('duracion_fmt'))
+
+                    res = df_ipcom.select([
+                        (
+                            pl.col('disposition').cast(pl.Utf8)
+                            + " - Duracion: "
+                            + pl.col('duracion_fmt')
+                        ).alias('gestion'),
+                        pl.lit("Caller ID rotativo").alias('usuario'),
+                        pl.col('fechagestion_fmt').alias('fechagestion'),
+                        pl.lit("Envio manual Syncra").alias('accion'),
+                        pl.lit("IVR IPCOM").alias('perfil'),
+                        pl.col('telefono_limpio').alias('demografico'),
+                        pl.col('identificacion_limpia').alias('identificacion'),
+                        (pl.col('cuenta_promesa_base') + "-").alias('cuenta_promesa'),
+                        pl.lit("claro").alias('campana')
+                    ])
+
+                    conditional = "IVR IPCOM"
+                    print(f"   📊 IVR IPCOM records found: {df_ipcom.height}")
+
+                except Exception as e:
+                    print(f"⚠️ Error in IVR IPCOM processing for {fname}: {e}")
 
             if res is None and mapping_df is not None:
                 try:

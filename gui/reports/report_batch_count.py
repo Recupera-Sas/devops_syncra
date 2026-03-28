@@ -175,7 +175,7 @@ def process_call_files(input_folder: str, output_folder: str):
         return
     
     df_with_dates = df_with_dates.with_columns([
-        pl.when(pl.col('perfil').str.contains("BLASTER CONTROLNEXT|IVR SAEM"))
+        pl.when(pl.col('perfil').str.contains("BLASTER CONTROLNEXT|IVR SAEM|IVR IPCOM"))
         .then(pl.lit("IVR"))
         .when(pl.col('perfil').str.contains("MENSAJERIA"))
         .then(pl.lit("SMS"))

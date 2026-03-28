@@ -133,8 +133,8 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     cuentas_cruzadas = set(df_merged['cuenta_promesa_clean'].to_list())
     
     print(f"📊 Estadísticas de cruce:")
-    print(f"   🔹 Cuentas únicas en NEXT: {len(cuentas_next):,}")
-    print(f"   🔹 Cuentas únicas en PROMESA: {len(cuentas_promesa):,}")
+    print(f"   🔹 Cuentas únicas en ASIGNACIÓN: {len(cuentas_next):,}")
+    print(f"   🔹 Cuentas únicas en GESTIÓN: {len(cuentas_promesa):,}")
     print(f"   🔹 Cuentas que cruzaron: {len(cuentas_cruzadas):,}")
     
     if len(cuentas_promesa) > 0:
@@ -208,7 +208,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         return f"❌ Faltan columnas: {missing}"
     
     if 'Debt_Age_Inicial' in df_next.columns:
-        print("📊 Aplicando corrección de marca_asignada con Debt_Age_Inicial")
+        print("\n")
         df_merged = df_merged.with_columns([
             pl.when(pl.col(col_map['marca_asignada']) == "120 - 180")
             .then(pl.col('Debt_Age_Inicial'))
@@ -253,7 +253,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_final.write_csv(output_completo, separator=';')
     
     df_efectivo = df_final.filter(
-        pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio")
+        pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio|answer|answered")
     )
     output_efectivo = os.path.join(output_folder, f"reporte_efectivo_blasters_{timestamp}.csv")
     df_efectivo.write_csv(output_efectivo, separator=';')
