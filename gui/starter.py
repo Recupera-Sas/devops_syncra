@@ -2227,7 +2227,7 @@ class Init_APP():
             Mbox_In_Process.exec()
 
             folder_path_bg = f"{self.folder_path}"
-            sell_pdfs.watermark_pdfs(self.folder_path_IVR, folder_path_bg)
+            gui.conversion.sell_pdfs.watermark_pdfs(self.folder_path_IVR, folder_path_bg)
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("Resultado")

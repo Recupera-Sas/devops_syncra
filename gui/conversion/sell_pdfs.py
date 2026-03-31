@@ -12,6 +12,7 @@ def watermark_pdfs(input_folder, output_folder):
             continue
 
         input_path = os.path.join(input_folder, filename)
+        print("✅ Procesando archivo:", filename)
         output_name = os.path.splitext(filename)[0] + "_.pdf"
         output_path = os.path.join(output_folder, output_name)
 
@@ -25,14 +26,17 @@ def watermark_pdfs(input_folder, output_folder):
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=(w, h))
             c.setFillColorRGB(0.5, 0.5, 0.5, alpha=0.25)
-            c.setFont("Helvetica-Bold", max(40, int(w / 8)))
+            font_size = max(12, int(min(w, h) / 15))
+            c.setFont("Helvetica-Bold", font_size)
             c.saveState()
             c.translate(w / 2, h / 2)
             c.rotate(45)
 
-            for x in range(-int(w), int(w), int(w / 3)):
-                for y in range(-int(h), int(h), int(h / 3)):
-                    c.drawString(x, y, "PRIVATE")
+            x_step = max(200, int(w / 4))
+            y_step = max(150, int(h / 4))
+            for x in range(-int(w), int(w), x_step):
+                for y in range(-int(h), int(h), y_step):
+                    c.drawString(x, y, "PRIVADO")
 
             c.restoreState()
             c.save()

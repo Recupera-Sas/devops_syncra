@@ -3949,7 +3949,7 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Marcar PDF´s (Privado)</string>
+              <string>Marcar PDF (Privado)</string>
              </property>
             </widget>
            </item>
@@ -6239,7 +6239,7 @@ QPushButton:pressed {
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>222</width>
+            <width>193</width>
             <height>192</height>
            </rect>
           </property>
