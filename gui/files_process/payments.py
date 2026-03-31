@@ -55,7 +55,16 @@ def process_txt(file_path):
         except:
             df = pd.read_csv(file_path, sep=delimiter, dtype=str, encoding='utf-8')
         
-        df.columns = df.columns.str.replace('"', '')
+        print(df.columns)
+        
+        df.columns = (
+            df.columns
+                .str.replace('\ufeff', '', regex=False)
+                .str.replace('"', '', regex=False)
+                .str.strip()
+        )
+
+
         return clean_dataframe(df)
     except Exception as e:
         print(f"❌ Error processing TXT {file_path}: {e}")
@@ -75,13 +84,12 @@ def clean_dataframe(df):
     if 'TIPO_OPERACION' in df.columns:
         df_filtrado = df[df['TIPO_OPERACION'] != "AJUSTE"]
         df = df_filtrado
-        
-    if 'Cuenta' in df.columns:
-        df['Cuenta'] = df['Cuenta'].apply(clean_numeric_cta)
-        df = df.rename(columns={'Cuenta': 'obligacion'})
     if 'CUENTA' in df.columns:
         df['CUENTA'] = df['CUENTA'].apply(clean_numeric_cta)
         df = df.rename(columns={'CUENTA': 'obligacion'})
+    if 'Cuenta' in df.columns:
+        df['Cuenta'] = df['Cuenta'].apply(clean_numeric_cta)
+        df = df.rename(columns={'Cuenta': 'obligacion'})
     if 'Número de Cliente' in df.columns:
         df['Número de Cliente'] = df['Número de Cliente'].apply(clean_numeric_cta)
         df = df.rename(columns={'Número de Cliente': 'obligacion'})
@@ -111,13 +119,17 @@ def clean_dataframe(df):
     if 'FECHA_APLICACION' in df.columns:
         df['FECHA_APLICACION'] = df['FECHA_APLICACION'].apply(clean_date)
         df = df.rename(columns={'FECHA_APLICACION': 'fecha'})
+    if 'Fech-Asignacion' in df.columns:
+        df['Fech-Asignacion'] = df['Fech-Asignacion'].apply(clean_date)
+        df = df.rename(columns={'Fech-Asignacion': 'fecha'})
     if 'FECHA_INGRESO' in df.columns:
         df['FECHA_INGRESO'] = df['FECHA_INGRESO'].apply(clean_date)
         df = df.rename(columns={'FECHA_INGRESO': 'fecha'})
     if 'Nombre Casa de Cobro' in df.columns:
         df = df[df['Codigo de Campaña'] == 'UNIF - RECUPERA SAS']
         df['Nombre Casa de Cobro'] = df['Nombre Casa de Cobro'].apply(clean_date)
-        df = df.rename(columns={'Nombre Casa de Cobro': 'fecha'})    
+        df = df.rename(columns={'Nombre Casa de Cobro': 'fecha'})  
+    print("COlumnas finales", df.columns)  
     return df[['obligacion', 'fecha', 'valor']]
 
 def process_excel(file_path):
