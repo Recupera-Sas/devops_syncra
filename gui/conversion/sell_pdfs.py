@@ -25,7 +25,8 @@ def watermark_pdfs(input_folder, output_folder):
 
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=(w, h))
-            c.setFillColorRGB(0.5, 0.5, 0.5, alpha=0.25)
+            # Gris más claro y más transparente
+            c.setFillColorRGB(0.7, 0.7, 0.7, alpha=0.15)  # Gris más suave
             font_size = max(12, int(min(w, h) / 15))
             c.setFont("Helvetica-Bold", font_size)
             c.saveState()
