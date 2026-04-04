@@ -1956,7 +1956,6 @@ class Init_APP():
         self.partitions_FOLDER = None
         self.digit_partitions_FOLDER()
 
-        Resource_folder = self.process_data.comboBox_Selected_Process_2.currentText()
         
         if self.folder_path_IVR is None:
             
@@ -1965,17 +1964,6 @@ class Init_APP():
             Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
             Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
             Mbox_File_Error.exec()
-            
-        elif "--- Seleccione opción" == Resource_folder:
-            Mbox_Incomplete = QMessageBox()
-            Mbox_Incomplete.setWindowTitle("Error de procesamiento")
-            Mbox_Incomplete.setIcon(QMessageBox.Icon.Warning)
-            Mbox_Incomplete.setText("Debe elegir el tipo de carpeta del recurso a leer o seleccionar todas.")
-            Mbox_Incomplete.exec()
-            self.process_data.comboBox_Selected_Process_2.setFocus()
-
-        else:
-            self.list_Resources = [Resource_folder]
     
     def exec_claro_structure_df(self):
 
@@ -2346,77 +2334,9 @@ class Init_APP():
         if len(list_to_process_Read) > 0:
             Folder_Resource = list_to_process_Read[0]
         else:
-            Folder_Resource = None
+            Folder_Resource = "TODOS"
 
         if Folder_Resource == "TODOS":
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("Procesando")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
-            Mbox_In_Process.exec()
-            
-            Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Consolidado de recurso(s) ejecutado exitosamente.")
-            Mbox_In_Process.exec()
-
-        elif Folder_Resource == "IVR":
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("Procesando")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
-            Mbox_In_Process.exec()
-
-            Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Consolidado de recurso(s) ejecutado exitosamente.")
-            Mbox_In_Process.exec()
-
-        elif Folder_Resource == "BOT":
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("Procesando")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
-            Mbox_In_Process.exec()
-            
-            Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Consolidado de recurso(s) ejecutado exitosamente.")
-            Mbox_In_Process.exec()
-
-        elif Folder_Resource == "SMS":
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("Procesando")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa la carpeta.")
-            Mbox_In_Process.exec()
-            
-            Path_Resource = f"{self.folder_path_IVR}"
-            self.Base = skills.count_telematic.process_management_files(Path_Resource, self.folder_path, self.partitions_FOLDER, self.process_data)
-
-            Mbox_In_Process = QMessageBox()
-            Mbox_In_Process.setWindowTitle("")
-            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
-            Mbox_In_Process.setText("Consolidado de recurso(s) ejecutado exitosamente.")
-            Mbox_In_Process.exec()
-
-        elif Folder_Resource == "EMAIL":
 
             Mbox_In_Process = QMessageBox()
             Mbox_In_Process.setWindowTitle("Procesando")
