@@ -270,6 +270,18 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_blasters = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("blaster|ivr")
     )
+    
+    df_blasters = df_blasters.with_columns([
+        pl.when(
+            pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio")
+        ).then(1).otherwise(2).alias("_prioridad")
+    ])
+    
+    df_blasters = df_blasters.sort("_prioridad").unique(
+        subset=["Cuenta", "linea_telefonica_mail"], 
+        keep="first"
+    ).drop("_prioridad")
+    
     output_blasters = os.path.join(output_folder, f"gestion_blasters_{timestamp}.csv")
     df_blasters.write_csv(output_blasters, separator=';')
     
