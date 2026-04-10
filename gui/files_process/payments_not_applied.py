@@ -7,7 +7,6 @@ def clean_and_process(df, file_label, file_type='excel'):
     """🧹 Cleans the DataFrame and adds the FILE column."""
         #Código de Cuenta	Monto	Fecha de Pago	Banco	CRM
     
-    # 🔄 Rename columns for consistency
     if 'REFERENCIA_DIVIDIDA' in df.columns:
         df = df.rename(columns={'REFERENCIA_DIVIDIDA': 'CUENTA'})
         print(f"   🔄 Renamed 'REFERENCIA_DIVIDIDA' to 'CUENTA'")
@@ -34,13 +33,21 @@ def clean_and_process(df, file_label, file_type='excel'):
     if 'CUENTA' in df.columns:
         print(f"   🔧 Processing 'CUENTA' column...")
         # Ensure CUENTA is string and clean it
-        df['CUENTA'] = df['CUENTA'].astype(str).str.replace('.', '', regex=False).str[-9:]
-        df = df[df['CUENTA'].str.isnumeric()]
+        
+        df['CUENTA'] = (
+            df['CUENTA']
+                .astype(str)
+                .str.strip()
+                .str.replace('.', '', regex=False)
+                .str.replace(' ', '', regex=False)
+        )
+
+        df = df[df['CUENTA'].str.fullmatch(r'\d{5,32}')]
+
         df['ARCHIVO'] = file_label
         print(f"   📋 Added 'ARCHIVO' column with value: {file_label}")
         
         if 'VALOR' in df.columns:
-            # Handle VALOR formatting - could be string or numeric
             df['VALOR'] = df['VALOR'].astype(str).str.replace('.', ',', regex=False)
             print(f"   💰 Formatted 'VALOR' column")
         
