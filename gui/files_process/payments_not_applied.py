@@ -5,6 +5,7 @@ import os
 
 def clean_and_process(df, file_label, file_type='excel'):
     """🧹 Cleans the DataFrame and adds the FILE column."""
+        #Código de Cuenta	Monto	Fecha de Pago	Banco	CRM
     
     # 🔄 Rename columns for consistency
     if 'REFERENCIA_DIVIDIDA' in df.columns:
@@ -13,6 +14,9 @@ def clean_and_process(df, file_label, file_type='excel'):
     if 'REFERENCIA DIVIDIDA' in df.columns:
         df = df.rename(columns={'REFERENCIA DIVIDIDA': 'CUENTA'})
         print(f"   🔄 Renamed 'REFERENCIA DIVIDIDA' to 'CUENTA'")
+    if 'Código de Cuenta' in df.columns:
+        df = df.rename(columns={'Código de Cuenta': 'CUENTA'})
+        print(f"   🔄 Renamed 'Código de Cuenta' to 'CUENTA'")
     if 'CUSTCODE' in df.columns:
         df = df.rename(columns={'CUSTCODE': 'CUENTA'})
         print(f"   🔄 Renamed 'CUSTCODE' to 'CUENTA'")
@@ -20,6 +24,9 @@ def clean_and_process(df, file_label, file_type='excel'):
     if 'MONTO' in df.columns:
         df = df.rename(columns={'MONTO': 'VALOR'})
         print(f"   🔄 Renamed 'MONTO' to 'VALOR'")
+    if 'Monto' in df.columns:
+        df = df.rename(columns={'Monto': 'VALOR'})
+        print(f"   🔄 Renamed 'Monto' to 'VALOR'")
     if 'PAGO' in df.columns:
         df = df.rename(columns={'PAGO': 'VALOR'})
         print(f"   🔄 Renamed 'PAGO' to 'VALOR'")
