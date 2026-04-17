@@ -68,8 +68,6 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if df_next is None or df_promesa is None:
         return "❌ No se encontraron los archivos necesarios"
     
-    print("🔄 Procesando cruce...")
-    
     cuenta_col = None
     for col in df_next.columns:
         if col.lower() == 'cuenta':
@@ -85,20 +83,36 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
             cuenta_next_col = col
             break
     
+    df_next = df_next.with_columns(
+        pl.when(
+            (pl.col(cuenta_col).is_not_null() & (pl.col(cuenta_col) != ""))
+        )
+        .then(pl.col(cuenta_col))
+        .when(
+            (pl.col(cuenta_col).is_null() | (pl.col(cuenta_col) == "")) &
+            (pl.col("CRM_Origen") == "BSCS") &
+            (pl.col(cuenta_next_col).str.contains(r"^\d{9}-$"))
+        )
+        .then(
+            pl.col(cuenta_next_col).str.replace(
+                r"^(\d)(\d+)(-)$",
+                r"${1}.${2}${3}"
+            )
+        )
+        .otherwise(pl.col(cuenta_next_col))
+        .alias(cuenta_col)
+    )
+    
+    df_next = df_next.with_columns(pl.col(cuenta_col).alias('cuenta_backup'))
+    
     if cuenta_next_col is None:
         return "❌ No se encontró la columna 'cuenta_next' en el archivo de cruce"
     
-    print("🧹 Limpiando cuentas en archivo NEXT...")
     df_next = df_next.with_columns([
         pl.col(cuenta_col).alias('cuenta_original'),
         pl.col(cuenta_next_col).map_elements(clean_cuenta, return_dtype=pl.Utf8).alias('cuenta_next_clean')
     ])
-    
-    print("📊 Muestra de cuentas NEXT limpias:")
-    sample_next = df_next.select(['cuenta_next_clean']).head(5)
-    for row in sample_next.rows():
-        print(f"   → {row[0]}")
-    
+
     cuenta_promesa_col = None
     for col in df_promesa.columns:
         if col.lower() == 'cuenta_promesa':
@@ -108,17 +122,12 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     if cuenta_promesa_col is None:
         return "❌ No se encontró la columna 'cuenta_promesa' en el archivo base"
     
-    print("🧹 Limpiando cuentas en archivo PROMESA...")
     df_promesa = df_promesa.with_columns([
         pl.col(cuenta_promesa_col).map_elements(clean_cuenta, return_dtype=pl.Utf8).alias('cuenta_promesa_clean')
     ])
     
-    print("📊 Muestra de cuentas PROMESA limpias:")
-    sample_promesa = df_promesa.select(['cuenta_promesa_clean']).head(5)
-    for row in sample_promesa.rows():
-        print(f"   → {row[0]}")
+    print(f"\n\n📅 Corte: {datetime.now().strftime('%Y-%m-%d')}\n")
     
-    print("🔄 Realizando cruce de cuentas...")
     df_merged = df_promesa.join(
         df_next,
         left_on='cuenta_promesa_clean',
@@ -208,7 +217,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         return f"❌ Faltan columnas: {missing}"
     
     if 'Debt_Age_Inicial' in df_next.columns:
-        print("\n")
+        print("")
         df_merged = df_merged.with_columns([
             pl.when(pl.col(col_map['marca_asignada']) == "120 - 180")
             .then(pl.col('Debt_Age_Inicial'))
@@ -221,7 +230,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     df_final = df_merged.with_columns([
         pl.lit("13").alias("id_casa_cobranza"),
-        pl.col('cuenta_original').alias("Cuenta"),
+        pl.when(pl.col('cuenta_original').str.len_chars() < 5).then(pl.col('cuenta_backup')).otherwise(pl.col('cuenta_original')).alias("Cuenta"),
         pl.col(col_map['nombre_del_cliente']).alias("nombre_completo"),
         pl.col(marca_col).alias("edad_mora_asignada"),
         pl.col(col_map['fechagestion']).str.to_datetime(format=None, strict=False).dt.strftime("%H:%M:%S").alias("hora_gestion"),
@@ -249,13 +258,13 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
-    output_completo = os.path.join(output_folder, f"gestion_final_completo_{timestamp}.csv")
+    output_completo = os.path.join(output_folder, f"1. gestion_final_completo_{timestamp}.csv")
     df_final.write_csv(output_completo, separator=';')
     
     df_efectivo = df_final.filter(
         pl.col("tipificacion").str.to_lowercase().str.contains("contestada|satisfactorio|answer|answered")
     )
-    output_efectivo = os.path.join(output_folder, f"reporte_efectivo_blasters_{timestamp}.csv")
+    output_efectivo = os.path.join(output_folder, f"reporte_blasters_efectivo_{timestamp}.csv")
     df_efectivo.write_csv(output_efectivo, separator=';')
     
     df_no_efectivo = df_final.filter(
@@ -264,7 +273,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     df_no_efectivo = df_no_efectivo.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("blaster|ivr")
     )
-    output_no_efectivo = os.path.join(output_folder, f"reporte_no_efectivo_blasters_{timestamp}.csv")
+    output_no_efectivo = os.path.join(output_folder, f"reporte_blasters_no_efectivo_{timestamp}.csv")
     df_no_efectivo.write_csv(output_no_efectivo, separator=';')
     
     df_blasters = df_final.filter(
@@ -282,13 +291,13 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
         keep="first"
     ).drop("_prioridad")
     
-    output_blasters = os.path.join(output_folder, f"gestion_blasters_{timestamp}.csv")
+    output_blasters = os.path.join(output_folder, f"2. gestion_blasters_{timestamp}.csv")
     df_blasters.write_csv(output_blasters, separator=';')
     
     df_mensajes = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("mensajer")
     )
-    output_mensajes = os.path.join(output_folder, f"reporte_mensajes_{timestamp}.csv")
+    output_mensajes = os.path.join(output_folder, f"3. reporte_mensajes_{timestamp}.csv")
     df_mensajes.write_csv(output_mensajes, separator=';')
     
     df_correo = df_final.filter(
@@ -309,35 +318,64 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
             except:
                 pass
     
-    output_correo = os.path.join(output_folder, f"reporte_correos_{timestamp}.csv")
+    output_correo = os.path.join(output_folder, f"4 .reporte_correos_{timestamp}.csv")
     df_correo.write_csv(output_correo, separator=';')
     
     df_iagen = df_final.filter(
         pl.col("nombre_asesor").str.to_lowercase().str.contains("iagen")
     )
-    output_iagen = os.path.join(output_folder, f"reporte_iagen_{timestamp}.csv")
+    output_iagen = os.path.join(output_folder, f"5. reporte_iagen_{timestamp}.csv")
     df_iagen.write_csv(output_iagen, separator=';')
     
+    # Calcular cuentas vacías para cada DataFrame específico
+    cuentas_vacias_efectivo = df_efectivo.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
+    cuentas_vacias_no_efectivo = df_no_efectivo.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
+    cuentas_vacias_blasters = df_blasters.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
+    cuentas_vacias_mensajes = df_mensajes.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
+    cuentas_vacias_correo = df_correo.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
+    cuentas_vacias_iagen = df_iagen.filter(
+        (pl.col("Cuenta").is_null()) | 
+        (pl.col("Cuenta") == "") | 
+        (pl.col("Cuenta") == "0")
+    ).height
+    
     print(f"✅ Procesado: {df_final.height:,} registros totales")
-    print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,}")
-    print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,}")
-    print(f"   🔹 Blasters: {df_blasters.height:,}")
-    print(f"   🔹 Mensajería: {df_mensajes.height:,}")
-    print(f"   🔹 Correos detectados: {df_correo.height:,}")
-    print(f"   🔹 IAGEN detectados: {df_iagen.height:,}")
-    print(f"💾 Archivos guardados:")
-    print(f"   📄 Completo: {output_completo}")
-    print(f"   📄 Blasters: {output_blasters}")
-    print(f"   📄 Efectivo: {output_efectivo}")
-    print(f"   📄 No Efectivo: {output_no_efectivo}")
-    print(f"   📄 Mensajes: {output_mensajes}")
-    print(f"   📄 Correos: {output_correo}")
-    print(f"   📄 IAGEN: {output_iagen}")
+    print(f"   🔹 Contestadas/Satisfactorio: {df_efectivo.height:,} - Cuentas vacías: {cuentas_vacias_efectivo}")
+    print(f"   🔹 No Contestadas/No Satisfactorio: {df_no_efectivo.height:,} - Cuentas vacías: {cuentas_vacias_no_efectivo}")
+    print(f"   🔹 Blasters: {df_blasters.height:,} - Cuentas vacías: {cuentas_vacias_blasters}")
+    print(f"   🔹 Mensajería: {df_mensajes.height:,} - Cuentas vacías: {cuentas_vacias_mensajes}")
+    print(f"   🔹 Correos detectados: {df_correo.height:,} - Cuentas vacías: {cuentas_vacias_correo}")
+    print(f"   🔹 IAGEN detectados: {df_iagen.height:,} - Cuentas vacías: {cuentas_vacias_iagen}")
     
     return procesar_archivo_final(output_folder, output_folder)
 
 def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
-    print("🔄 Procesando archivo final con llave y cruce por prioridad...")
+    print("\n\n🔄 Procesando archivo final con llave y cruce por prioridad...")
     
     csv_files = [f for f in os.listdir(input_folder) if f.lower().endswith('.csv')]
     parquet_files = [f for f in os.listdir(input_folder) if f.lower().endswith(('.parquet', '.pq'))]
@@ -496,11 +534,9 @@ def procesar_archivo_final(input_folder: str, output_folder: str) -> str:
     
     df_final_combinado.write_csv(output_file, separator=';')
     
-    print(f"✅ Archivo unificado generado: {output_file}")
-    print(f"   📊 Total registros: {df_final_combinado.height:,}")
+    print(f"   📊 Total registros unificado: {df_final_combinado.height:,}")
     if df_agente.height > 0:
         print(f"   🔹 Registros AGENTE: {df_agente.height:,}")
         print(f"   🔹 Registros adicionales incorporados: {df_final_combinado.height - df_agente.height:,}")
-    print(f"   🔹 Registros únicos por llave")
     
-    return f"✅ Archivo unificado guardado en: {output_file}"
+    return f"✅ Proceso completado. Archivo final: {output_file}"
