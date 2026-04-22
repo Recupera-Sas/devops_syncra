@@ -108,16 +108,23 @@ def process_ranking_files(input_folder, output_file):
                 else:
                     df["estado"] = df["concepto"]
 
+                # 🔽 SOLO MODIFICADO ESTA PARTE 🔽
                 if is_special_estado_file:
                     if 'concepto' in df.columns:
                         df['concepto_real'] = df['concepto']
                     elif 'estado' in original_columns and 'estado' in df.columns:
                         df['concepto_real'] = df['estado']
                     
+                    # Guardamos el estado original para mostrarlo
+                    estado_original = df['estado'].copy()
+                    
+                    # Nueva lógica: GESTIONAR - CAIDO o NO GESTIONAR - estado_original
                     df['estado'] = df['estado'].apply(
-                        lambda x: "GESTIONAR" if str(x).strip().upper() == "CAIDO" else "NO GESTIONAR"
+                        lambda x: f"GESTIONAR - CAIDO" if str(x).strip().upper() == "CAIDO" 
+                        else f"NO GESTIONAR - {str(x).strip()}"
                     )
-                    print(f"   🔄 Aplicada lógica especial: CAIDO → GESTIONAR, otros → NO GESTIONAR")
+                    print(f"   🔄 Aplicada lógica especial: CAIDO → 'GESTIONAR - CAIDO', otros → 'NO GESTIONAR - estado_original'")
+                # 🔼 FIN DE LA MODIFICACIÓN 🔼
                 else:
                     df["llave"] = (df["estado"].astype(str) + df["tipo"].astype(str)).str.upper()
 
