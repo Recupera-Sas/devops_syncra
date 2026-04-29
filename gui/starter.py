@@ -6,6 +6,7 @@ from gui.reports import report_batch_count
 from gui.searching import cruice_demographic, efecty_blaster
 from gui.apis import batch_api_claro, batch_api_others_campaigns
 import gui.reports.batch_cruice
+import gui.reports.report_batch_campaings
 from gui.searching import cruice_report_claro
 import gui.union_like_powershell
 import gui.adition_demographic
@@ -270,6 +271,7 @@ class Init_APP():
         self.process_data.pushButton_33.clicked.connect(self.exec_claro_blaster)
         self.process_data.pushButton_34.clicked.connect(self.exec_batch_claro)
         self.process_data.pushButton_35.clicked.connect(self.exec_report_batch_claro)
+        self.process_data.pushButton_40.clicked.connect(self.exec_report_count_blaster)
         self.process_data.pushButton_38.clicked.connect(self.exec_batch_otras_campanas)
         self.process_data.pushButton_39.clicked.connect(self.sell_pdfs_folder)
         self.process_data.pushButton_36.clicked.connect(self.exec_report_count_batch_claro)
@@ -2263,6 +2265,36 @@ class Init_APP():
             Mbox_File_Error.setWindowTitle("Error de procesamiento")
             Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
             Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a consolidar.")
+            Mbox_File_Error.exec()
+    
+    def exec_report_count_blaster(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el reporte.")
+            Mbox_In_Process.exec()
+            
+            gui.reports.report_batch_campaings.process_calls(self.folder_path_IVR, self.folder_path)
+
+            Mbox_In_Process = QMessageBox() 
+            Mbox_In_Process.setWindowTitle("")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Reporte de BLASTER generado exitosamente.")
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a validar el BLASTER.")
             Mbox_File_Error.exec()
     
     def exec_report_count_batch_claro(self):
