@@ -60,6 +60,8 @@ def Renamed_Column(Data_Frame):
     else:
         Data_Frame = Data_Frame.withColumnRenamed("cuenta", "ID_Payjoy")
     Data_Frame = Data_Frame.withColumnRenamed("identifitation", "Identificacion")
+    if "monto_pago" in Data_Frame.columns:
+        Data_Frame = Data_Frame.withColumnRenamed("monto_pago", "valor_cuota")
     return Data_Frame
 
 def Save_Data_Frame (Data_Frame, Directory_to_Save, partitions, resource):
@@ -322,8 +324,9 @@ def conversion_process (Data_Frame, output_directory, partitions, Contacts_Min):
     Data_ = Renamed_Column(Data_)
     
     Data_ = Data_.select("Identificacion", name, "ID_Payjoy", "bucket_dias_mora", f"{Price_Col}", \
-                         "saldo_total", "valor_pago", "fabricante", "tipo_base", "ultimoperfil", "mejorperfil", "fecha_pago", \
-                         "fechagestion", "Form_Moneda", "NOMBRE CORTO", "Dato_Contacto", "Hora_Envio", "Hora_Real", "Fecha_Hoy")
+                         "saldo_total", "valor_pago", "fabricante", "tipo_base", "ultimoperfil", "mejorperfil", "ultimoperfil_mes", "mejorperfil_mes", "fecha_pago", \
+                         "fechagestion", "Form_Moneda", "NOMBRE CORTO", "Dato_Contacto", "Hora_Envio", "Hora_Real", "Fecha_Hoy", 
+                         "etiqueta_dispositivo", "riesgo", "dias_mora", "grupo_tratamiento_2", "valor_cuota")
     
     return Data_
 
