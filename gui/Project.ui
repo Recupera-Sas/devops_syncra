@@ -3415,9 +3415,9 @@ QPushButton:pressed {
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>-333</y>
+            <y>-363</y>
             <width>222</width>
-            <height>642</height>
+            <height>672</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_2">
@@ -3589,62 +3589,6 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="9" column="0">
-            <widget class="QPushButton" name="pushButton_11">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Lectura de SMS - Claro</string>
-             </property>
-            </widget>
-           </item>
-           <item row="15" column="0">
-            <widget class="QPushButton" name="pushButton_22">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Cruce de Claro con Batch</string>
-             </property>
-            </widget>
-           </item>
            <item row="1" column="0">
             <widget class="QPushButton" name="pushButton_33">
              <property name="font">
@@ -3701,8 +3645,8 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="7" column="0">
-            <widget class="QPushButton" name="pushButton_12">
+           <item row="9" column="0">
+            <widget class="QPushButton" name="pushButton_11">
              <property name="font">
               <font>
                <family>Bahnschrift SemiBold</family>
@@ -3725,7 +3669,35 @@ QPushButton:pressed
 }</string>
              </property>
              <property name="text">
-              <string>Consolidar Resultados IPCom</string>
+              <string>Lectura de SMS - Claro</string>
+             </property>
+            </widget>
+           </item>
+           <item row="15" column="0">
+            <widget class="QPushButton" name="pushButton_22">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Cruce de Claro con Batch</string>
              </property>
             </widget>
            </item>
@@ -3757,6 +3729,34 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
+           <item row="7" column="0">
+            <widget class="QPushButton" name="pushButton_12">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Consolidar Resultados IPCom</string>
+             </property>
+            </widget>
+           </item>
            <item row="11" column="0">
             <widget class="QPushButton" name="pushButton_21">
              <property name="font">
@@ -3785,34 +3785,6 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="12" column="0">
-            <widget class="QPushButton" name="pushButton_27">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Convertir CSV a JSON</string>
-             </property>
-            </widget>
-           </item>
            <item row="2" column="0">
             <widget class="QPushButton" name="pushButton_40">
              <property name="font">
@@ -3838,6 +3810,34 @@ QPushButton:pressed
              </property>
              <property name="text">
               <string>Contador Campañas Blaster</string>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="0">
+            <widget class="QPushButton" name="pushButton_27">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Convertir CSV a JSON</string>
              </property>
             </widget>
            </item>
@@ -3897,34 +3897,6 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="16" column="0">
-            <widget class="QPushButton" name="pushButton_29">
-             <property name="font">
-              <font>
-               <family>Bahnschrift SemiBold</family>
-               <pointsize>10</pointsize>
-               <weight>7</weight>
-               <italic>false</italic>
-               <bold>false</bold>
-              </font>
-             </property>
-             <property name="styleSheet">
-              <string notr="true">/* Al pasar el mouse */
-QPushButton:hover {
-    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
-    border-radius: 8px;
-}
-QPushButton:pressed
-{
-	color: rgb(255, 255, 255);
-	background-color: rgb(217, 16, 76);
-}</string>
-             </property>
-             <property name="text">
-              <string>Unificar Demográficos Parquet</string>
-             </property>
-            </widget>
-           </item>
            <item row="13" column="0">
             <widget class="QPushButton" name="pushButton_54">
              <property name="font">
@@ -3981,7 +3953,35 @@ QPushButton:pressed
              </property>
             </widget>
            </item>
-           <item row="26" column="0">
+           <item row="16" column="0">
+            <widget class="QPushButton" name="pushButton_29">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Unificar Demográficos Parquet</string>
+             </property>
+            </widget>
+           </item>
+           <item row="27" column="0">
             <widget class="QPushButton" name="pushButton_30">
              <property name="font">
               <font>
@@ -4006,6 +4006,34 @@ QPushButton:pressed
              </property>
              <property name="text">
               <string>CSV Unidos con PowerShell</string>
+             </property>
+            </widget>
+           </item>
+           <item row="26" column="0">
+            <widget class="QPushButton" name="pushButton_42">
+             <property name="font">
+              <font>
+               <family>Bahnschrift SemiBold</family>
+               <pointsize>10</pointsize>
+               <weight>7</weight>
+               <italic>false</italic>
+               <bold>false</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Al pasar el mouse */
+QPushButton:hover {
+    border: 2px solid rgb(217, 16, 76); /* Borde gris claro */
+    border-radius: 8px;
+}
+QPushButton:pressed
+{
+	color: rgb(255, 255, 255);
+	background-color: rgb(217, 16, 76);
+}</string>
+             </property>
+             <property name="text">
+              <string>Reporte Cuentas Inactivas</string>
              </property>
             </widget>
            </item>

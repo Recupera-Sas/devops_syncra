@@ -21,6 +21,7 @@ import cloud.conversion_csv_to_json
 import cloud.conversion_csv_to_parquet
 import gui.files_process.payments
 import gui.reports.daily_payjoy
+import gui.reports.report_inactive_claro
 import gui.reports.report_cleaner_demos_payjoy
 import gui.files_process.ranking_read
 import gui.searching.search_data
@@ -274,6 +275,7 @@ class Init_APP():
         self.process_data.pushButton_35.clicked.connect(self.exec_report_batch_claro)
         self.process_data.pushButton_40.clicked.connect(self.exec_report_count_blaster)
         self.process_data.pushButton_41.clicked.connect(self.exec_report_demos_payjoy)
+        self.process_data.pushButton_42.clicked.connect(self.exec_report_inactive_accounts_claro)
         self.process_data.pushButton_38.clicked.connect(self.exec_batch_otras_campanas)
         self.process_data.pushButton_39.clicked.connect(self.sell_pdfs_folder)
         self.process_data.pushButton_36.clicked.connect(self.exec_report_count_batch_claro)
@@ -2320,6 +2322,36 @@ class Init_APP():
             Mbox_In_Process.setWindowTitle("")
             Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
             Mbox_In_Process.setText("Reporte de demograficos en Payjoy generado exitosamente.")
+            Mbox_In_Process.exec()
+        
+        else:
+            Mbox_File_Error = QMessageBox()
+            Mbox_File_Error.setWindowTitle("Error de procesamiento")
+            Mbox_File_Error.setIcon(QMessageBox.Icon.Warning)
+            Mbox_File_Error.setText("Debe seleccionar una ruta con los archivos a validar el BLASTER.")
+            Mbox_File_Error.exec()
+    
+    def exec_report_inactive_accounts_claro(self):
+
+        type_process = "folder"
+        
+        self.validation_data_folders(type_process)
+        self.digit_partitions_FOLDER()
+
+        if self.folder_path_IVR != None:
+
+            Mbox_In_Process = QMessageBox()
+            Mbox_In_Process.setWindowTitle("Procesando")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el reporte.")
+            Mbox_In_Process.exec()
+            
+            gui.reports.report_inactive_claro.holaquehace(self.folder_path_IVR, self.folder_path)
+
+            Mbox_In_Process = QMessageBox() 
+            Mbox_In_Process.setWindowTitle("")
+            Mbox_In_Process.setIcon(QMessageBox.Icon.Information)
+            Mbox_In_Process.setText("Reporte de cuentas inactivas en Claro generado exitosamente.")
             Mbox_In_Process.exec()
         
         else:
