@@ -2346,7 +2346,7 @@ class Init_APP():
             Mbox_In_Process.setText("Por favor espere la ventana de confirmación, mientras se procesa el reporte.")
             Mbox_In_Process.exec()
             
-            gui.reports.report_inactive_claro.holaquehace(self.folder_path_IVR, self.folder_path)
+            gui.reports.report_inactive_claro.report_inactive_claro(self.folder_path_IVR, self.folder_path)
 
             Mbox_In_Process = QMessageBox() 
             Mbox_In_Process.setWindowTitle("")
