@@ -40,48 +40,44 @@ def save_large_files(df, base_path, base_name):
     # 📁 asegurar carpeta
     os.makedirs(base_path, exist_ok=True)
 
-    # 🧱 1. PARQUET (completo, sin particionar)
+    # 🧱 1. PARQUET (completo)
     parquet_path = os.path.join(base_path, f"{base_name}.parquet")
     df.write_parquet(parquet_path)
     print(f"Parquet generado: {parquet_path}")
 
-    # 🔧 CSV necesita modificar columna cuenta
+    # 🔧 CSV: modificar columna cuenta
     df_csv = df.with_columns(
         pl.col("cuenta").cast(pl.Utf8) + pl.lit("-")
     )
-
-    # 🟢 CASO SIMPLE (no particionar)
+    # 🟢 CASO SIMPLE
     if parts == 1:
-        # 2. CSV
         csv_path = os.path.join(base_path, f"{base_name}.csv")
-        df_csv.write_csv(csv_path)
+
+        content = df_csv.write_csv(separator=";")
+
+        with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(content)
+
         print(f"CSV generado: {csv_path}")
-
-        # 3. Excel
-        excel_path = os.path.join(base_path, f"{base_name}.xlsx")
-        df.write_excel(excel_path)
-        print(f"Excel generado: {excel_path}")
-
         return
 
-    # 🔥 CASO GRANDE (particionado)
+
+    # 🔥 CASO GRANDE
     print(f"Dividiendo en {parts} partes...")
 
     for i in range(parts):
         start = i * MAX_ROWS
 
         chunk_csv = df_csv.slice(start, MAX_ROWS)
-        chunk_excel = df.slice(start, MAX_ROWS)
 
-        # 2. CSV
         csv_path = os.path.join(base_path, f"{base_name}_parte_{i+1}.csv")
-        chunk_csv.write_csv(csv_path)
-        print(f"CSV generado: {csv_path}")
 
-        # 3. Excel
-        excel_path = os.path.join(base_path, f"{base_name}_parte_{i+1}.xlsx")
-        chunk_excel.write_excel(excel_path)
-        print(f"Excel generado: {excel_path}")
+        content = chunk_csv.write_csv(separator=";")
+
+        with open(csv_path, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(content)
+
+        print(f"CSV generado: {csv_path}")
 
 def transform_inactive_logic(df):
     marca_df = (
