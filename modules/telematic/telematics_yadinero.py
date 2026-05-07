@@ -55,6 +55,8 @@ def function_complete_telematics(path, output_directory, partitions, process_res
         ~col("ultimoperfil_mes").isin(filter_conditions)
     )
     
+    Data_Frame = Data_Frame.withColumn("valor_pago", col("valor_a_pagar"))
+
     columns_filter = ["Identificacion", "ID_YaDinero", "nombrecompleto", "dias_de_mora", "saldo_actual",
         "valor_desembolsado", "fecha_desembolso", "valor_a_pagar", "Form_Moneda", "fechagestion", "fechapromesa",
         "valorpromesa", "mejorperfil", "ultimoperfil", "mejorperfil_mes", "ultimoperfil_mes", "valor_pago",
@@ -160,7 +162,7 @@ def Phone_Data(Data_):
 
     columns_to_stack_celular = [f"celular{i}" for i in range(1, 11)]
     columns_to_stack_fijo = [f"fijo{i}" for i in range(1, 5)]
-    columns_to_stack_min = ["segundo_celular", "celular_1"]
+    columns_to_stack_min = ["segundo_celular", "celular"]
     all_columns_to_stack = columns_to_stack_min #+ columns_to_stack_celular + columns_to_stack_fijo
     columns_to_drop_contact = all_columns_to_stack
     Stacked_Data_Frame = Data_.select("*", *all_columns_to_stack)
