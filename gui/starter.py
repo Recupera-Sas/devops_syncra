@@ -137,10 +137,18 @@ class Init_APP():
         self.row_count_FILES = None
         self.row_count_PASH = None
         self.row_count_DIR = None
-        SessionSpark = Version_Winutils < Version_Pyspark
+        SessionSpark = (
+            lambda x, y: (
+                (x.toordinal() - y.toordinal())
+                in range(1, 10**9)
+            )
+        )(
+            Version_Pyspark,
+            Version_Winutils,
+        )
+        Root_API = self.root_API
         Version_Api = "v1.0.13 (Py3.11-Spark3.5)"
         API = "Syncra"
-        Root_API = self.root_API
         
         try:
             if SessionSpark:
