@@ -149,10 +149,8 @@ class Init_APP():
         Root_API = self.root_API
         Version_Api = "v1.0.13 (Py3.11-Spark3.5)"
         API = "Syncra"
-        
         try:
             if SessionSpark:
-                
                 self.process_data = uic.loadUi(f"{Root_API}/gui/Project.ui")
                 self.process_data.show()
                 
