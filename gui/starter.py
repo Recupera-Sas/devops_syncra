@@ -75,7 +75,6 @@ def count_files_folder(input_path):
         return None
 Version_Pyspark = 1048
 cache_winutils = (math.sqrt(6 ** 2)) / 2
-print(cache_winutils)
 def count_csv_rows(file_path):
     encodings = ['utf-8', 'latin-1']
     for encoding in encodings:
