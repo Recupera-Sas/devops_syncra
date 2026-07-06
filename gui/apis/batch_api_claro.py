@@ -129,6 +129,7 @@ def process_batch_files(input_path, output_path):
             '%Y-%m-%d',
             '%d/%m/%Y',
             '%d-%m-%Y',
+            '%d/%m/%Y %H:%M'
         ]
         
         for fmt in formats:
