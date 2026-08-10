@@ -1,160 +1,587 @@
-import pandas as pd
-import numpy as np
-import os
+import polars as pl
 import glob
+import os
 from datetime import datetime
-import warnings
-warnings.filterwarnings('ignore')
+
 
 def process_management_files(input_path, output_path, partitions, process_data):
-    print("="*80)
+
+    print("=" * 80)
     print("🚀 STARTING MANAGEMENT FILES PROCESSING")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*80)
-    
+    print("=" * 80)
+
     if not os.path.exists(input_path):
         print(f"❌ ERROR: Input path does not exist: {input_path}")
         return
-    
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-        print(f"📁 Created output directory")
-    
-    # STEP 1: Load management files
-    management_files = []
-    for ext in ['*.csv', '*.parquet', '*.parq']:
-        management_files.extend(glob.glob(os.path.join(input_path, '**', ext), recursive=True))
-    
-    df_management_total = None
-    for file in management_files:
+        print("📁 Created output directory")
+
+    # ==========================================================
+    # BUSCAR TODOS LOS ARCHIVOS
+    # ==========================================================
+
+    files = []
+
+    for ext in ("*.parquet", "*.parq", "*.csv"):
+        files.extend(
+            glob.glob(
+                os.path.join(input_path, "**", ext),
+                recursive=True
+            )
+        )
+
+    print(f"\nArchivos encontrados: {len(files):,}")
+
+    # ==========================================================
+    # CARGAR GESTIONES (Lazy)
+    # ==========================================================
+
+    management_lfs = []
+
+    print("\nBuscando archivos de gestión...")
+
+    for file in files:
+
         try:
-            if file.lower().endswith('.csv'):
-                df = pd.read_csv(file, delimiter=';', encoding='utf-8', low_memory=False)
+
+            if file.lower().endswith(".csv"):
+
+                lf = pl.scan_csv(
+                    file,
+                    separator=";",
+                    infer_schema_length=10000,
+                    ignore_errors=True
+                )
+
             else:
-                df = pd.read_parquet(file)
-            
-            if all(col in df.columns for col in ['campana', 'cuenta_promesa', 'perfil']):
-                if df_management_total is None:
-                    df_management_total = df[['campana', 'cuenta_promesa', 'perfil']].copy()
-                else:
-                    df_management_total = pd.concat([df_management_total, df[['campana', 'cuenta_promesa', 'perfil']]], ignore_index=True)
-        except Exception as e:
-            continue
-    
-    if df_management_total is None:
+
+                lf = pl.scan_parquet(file)
+
+            cols = lf.collect_schema().names()
+
+            rename = {}
+
+            # Compatibilidad con el script nuevo
+
+            if "Campana" in cols:
+                rename["Campana"] = "campana"
+
+            if "Perfil" in cols:
+                rename["Perfil"] = "perfil"
+
+            if "Cuenta_Next" in cols:
+                rename["Cuenta_Next"] = "cuenta_promesa"
+
+            if rename:
+                lf = lf.rename(rename)
+
+            cols = lf.collect_schema().names()
+
+            if all(
+                c in cols
+                for c in [
+                    "campana",
+                    "perfil",
+                    "cuenta_promesa"
+                ]
+            ):
+
+                print(" Gestión:", os.path.basename(file))
+
+                management_lfs.append(
+
+                    lf.select(
+
+                        [
+
+                            "campana",
+                            "perfil",
+                            "cuenta_promesa"
+
+                        ]
+
+                    )
+
+                )
+
+        except Exception:
+
+            pass
+
+    if not management_lfs:
+
         print("❌ No valid management data found")
+
         return
-    
-    print(f"\n📊 Structure 1: {len(df_management_total):,} records")
-    
-    # STEP 2: Load mapping files
-    mapping_files = []
-    for ext in ['*.csv', '*.parquet', '*.parq']:
-        mapping_files.extend(glob.glob(os.path.join(input_path, '**', ext), recursive=True))
-    
-    df_mapping_total = None
-    for file in mapping_files:
-        try:
-            if file.lower().endswith('.csv'):
-                df_sample = pd.read_csv(file, delimiter=';', encoding='utf-8', nrows=100)
-            else:
-                df_sample = pd.read_parquet(file)
-            
-            if 'Cuenta_Next' in df_sample.columns:
-                if file.lower().endswith('.csv'):
-                    df_full = pd.read_csv(file, delimiter=';', encoding='utf-8', low_memory=False)
-                else:
-                    df_full = pd.read_parquet(file)
-                
-                cols = [c for c in ['Cuenta_Next', 'Cuenta', 'Marca_Asignada'] if c in df_full.columns]
-                if df_mapping_total is None:
-                    df_mapping_total = df_full[cols].copy()
-                else:
-                    df_mapping_total = pd.concat([df_mapping_total, df_full[cols]], ignore_index=True)
-        except Exception as e:
-            continue
-    
-    if df_mapping_total is None:
-        print("❌ No mapping files found")
-        return
-    
-    print(f"📊 Structure 2: {len(df_mapping_total):,} records")
-    
-    # STEP 3: Prepare data
-    if 'Cuenta' in df_mapping_total.columns:
-        df_mapping_total['Cuenta_Real'] = df_mapping_total['Cuenta'].astype(str)
-    else:
-        df_mapping_total['Cuenta_Real'] = ''
-    
-    df_mapping_total['Cuenta_Next_Clean'] = df_mapping_total['Cuenta_Next'].astype(str).str.replace('-', '', regex=False)
-    df_management_total['cuenta_promesa_clean'] = df_management_total['cuenta_promesa'].astype(str).str.replace('-', '', regex=False)
-    
-    df_mapping_unique = df_mapping_total.drop_duplicates(subset=['Cuenta_Next_Clean'])
-    
-    # STEP 4: Merge data
-    df_merged = pd.merge(
-        df_management_total,
-        df_mapping_unique,
-        left_on='cuenta_promesa_clean',
-        right_on='Cuenta_Next_Clean',
-        how='inner'
+
+    lf_management = pl.concat(
+        management_lfs,
+        how="vertical_relaxed"
     )
-    
-    print(f"🔗 Records matched: {len(df_merged):,} ({len(df_merged)/len(df_management_total)*100:.1f}%)")
-    
-    if len(df_merged) == 0:
-        print("❌ No matches found")
+    lf_management = lf_management.with_columns(
+        pl.col("cuenta_promesa")
+        .cast(pl.Utf8)
+        .str.replace_all("-", "")
+        .str.replace_all(r"\.", "")
+        .str.strip_chars()
+    )
+    print("\nColumnas gestión:")
+    print(lf_management.collect_schema().names())
+
+    total_management = (
+        lf_management
+        .select(pl.len())
+        .collect(streaming=True)
+        .item()
+    )
+
+    print(f"\n📊 Structure 1: {total_management:,} registros")
+
+    # ==========================================================
+    # CARGAR MAPEO
+    # ==========================================================
+
+    mapping_lfs = []
+
+    print("\nBuscando archivos de mapeo...")
+
+    for file in files:
+
+        try:
+
+            if file.lower().endswith(".csv"):
+
+                lf = pl.scan_csv(
+                    file,
+                    separator=";",
+                    infer_schema_length=10000,
+                    ignore_errors=True
+                )
+
+            else:
+
+                lf = pl.scan_parquet(file)
+
+            cols = lf.collect_schema().names()
+
+            rename = {}
+
+            if "cuenta_promesa" in cols and "Cuenta_Next" not in cols:
+                rename["cuenta_promesa"] = "Cuenta_Next"
+
+            if "MARCA" in cols and "Marca_Asignada" not in cols:
+                rename["MARCA"] = "Marca_Asignada"
+
+            if rename:
+                lf = lf.rename(rename)
+
+            cols = lf.collect_schema().names()
+
+            if "Cuenta_Next" in cols:
+
+                print(" Mapeo:", os.path.basename(file))
+
+                seleccionar = [
+                    c
+                    for c in [
+                        "Cuenta_Next",
+                        "Cuenta",
+                        "Marca_Asignada"
+                    ]
+                    if c in cols
+                ]
+
+                mapping_lfs.append(
+
+                    lf.select(seleccionar)
+
+                )
+
+        except Exception:
+
+            pass
+
+    if not mapping_lfs:
+
+        print("❌ No mapping files found")
+
         return
-    
-    # STEP 5: Classify profiles
-    df_merged['perfil_upper'] = df_merged['perfil'].astype(str).str.upper()
-    
-    conditions = [
-        df_merged['perfil_upper'].str.contains('CORREO|EMAIL|MAIL', na=False),
-        df_merged['perfil_upper'].str.contains('BLASTER|IVR', na=False),
-        df_merged['perfil_upper'].str.contains('MENSAJ|SMS|TEXTO', na=False)
-    ]
-    choices = ['EMAIL', 'IVR', 'SMS']
-    df_merged['Recurso'] = np.select(conditions, choices, default=df_merged['perfil'])
-    
-    marca_col = 'Marca_Asignada' if 'Marca_Asignada' in df_merged.columns else 'Marca'
-    if 'Marca_Asignada' not in df_merged.columns:
-        df_merged['Marca_Asignada'] = '0'
-        marca_col = 'Marca_Asignada'
-    
-    # STEP 6: Aggregate results
-    df_result = df_merged.groupby(['Recurso', 'campana', 'Cuenta_Real', 'Cuenta_Next_Clean', marca_col]).size().reset_index(name='Cantidad')
-    
-    df_result = df_result.rename(columns={
-        'Cuenta_Next_Clean': 'Cuenta_Sin_Punto',
-        marca_col: 'Marca'
-    })
-    
-    df_result = df_result[['Cuenta_Real', 'Cuenta_Sin_Punto', 'Marca', 'Recurso', 'Cantidad']]
-    
-    print(f"\n📊 Unique accounts by resource:")
-    for profile in df_result['Recurso'].unique():
-        df_profile = df_result[df_result['Recurso'] == profile]
-        unique_accounts = df_profile['Cuenta_Sin_Punto'].nunique()
-        total_qty = df_profile['Cantidad'].sum()
-        print(f"   {profile}: {unique_accounts:,} unique accounts, {total_qty:,} total messages")
-    
-    # STEP 7: Generate output files
-    current_date = datetime.now().strftime('%Y%m%d')
-    profiles = df_result['Recurso'].unique()
-    
-    print(f"\n💾 Generating files:")
-    for profile in profiles:
-        df_profile = df_result[df_result['Recurso'] == profile].copy()
-        total = df_profile['Cantidad'].sum()
-        filename = f"{profile}_{current_date}.csv"
-        filepath = os.path.join(output_path, filename)
-        df_profile.to_csv(filepath, sep=';', index=False, encoding='utf-8')
-        print(f"   ✅ {profile}: {len(df_profile):,} rows, {total:,} total -> {filename}")
-    
-    print("\n" + "="*80)
+
+    lf_mapping = pl.concat(
+        mapping_lfs,
+        how="vertical_relaxed"
+    )
+    print("\nColumnas mapeo:")
+    print(lf_mapping.collect_schema().names())
+
+    total_mapping = (
+        lf_mapping
+        .select(pl.len())
+        .collect(streaming=True)
+        .item()
+    )
+
+    print(f"📊 Structure 2: {total_mapping:,} registros")
+
+    # ==========================================================
+    # LIMPIEZA
+    # ==========================================================
+
+    lf_management = lf_management.with_columns(
+
+        pl.col("cuenta_promesa")
+        .cast(pl.Utf8)
+        .str.replace_all("-", "")
+        .str.replace_all(r"\.", "")
+        .str.strip_chars()
+
+    )
+
+    if "Cuenta" in lf_mapping.collect_schema().names():
+        lf_mapping = lf_mapping.with_columns([
+            pl.when(
+                pl.col("Cuenta").is_null()
+                | (pl.col("Cuenta").cast(pl.Utf8).str.strip_chars() == "")
+            )
+            .then(pl.lit("nan"))
+            .otherwise(
+                pl.col("Cuenta")
+                .cast(pl.Utf8)
+                .str.replace_all(r"\.0$", "")
+                .str.strip_chars()
+            )
+            .alias("Cuenta_Real"),
+
+            pl.col("Cuenta_Next")
+            .cast(pl.Utf8)
+            .str.replace_all("-", "")
+            .str.replace_all(r"\.", "")
+            .str.strip_chars()
+        ])
+    else:
+        lf_mapping = lf_mapping.with_columns([
+            pl.lit("nan").alias("Cuenta_Real"),
+
+            pl.col("Cuenta_Next")
+            .cast(pl.Utf8)
+            .str.replace_all("-", "")
+            .str.replace_all(r"\.", "")
+            .str.strip_chars()
+        ])
+
+    lf_mapping = (
+
+        lf_mapping
+
+        .with_columns(
+
+            pl.col("Cuenta_Next")
+            .cast(pl.Utf8)
+            .str.replace_all("-", "")
+            .str.replace_all(r"\.", "")
+            .str.strip_chars()
+
+        )
+
+        .unique(
+            subset=["Cuenta_Next"],
+            keep="first"
+        )
+
+    )
+    # ==========================================================
+    # JOIN
+    # ==========================================================
+
+    print("\nRealizando JOIN...")
+    print("\nPrimeras cuentas gestión:")
+    print(
+        lf_management
+        .select("cuenta_promesa")
+        .limit(5)
+        .collect(streaming=True)
+    )
+
+    print("\nPrimeras cuentas mapeo:")
+    print(
+        lf_mapping
+        .select("Cuenta_Next")
+        .limit(5)
+        .collect(streaming=True)
+    )
+    print(
+        lf_mapping
+        .select([
+            pl.col("Cuenta").is_null().sum().alias("Cuenta_null"),
+            pl.col("Marca_Asignada").is_null().sum().alias("Marca_null"),
+            pl.len().alias("Total")
+        ])
+        .collect(streaming=True)
+    )
+
+    lf_result = (
+
+        lf_management.join(
+
+            lf_mapping,
+
+            left_on="cuenta_promesa",
+            right_on="Cuenta_Next",
+
+            how="inner"
+
+        )
+
+    )
+    print(
+        lf_result
+        .limit(10)
+        .collect(streaming=True)
+    )
+
+    stats = (
+
+        lf_result
+
+        .select(pl.len().alias("Total"))
+
+        .collect(streaming=True)
+
+    )
+
+    total = stats["Total"][0]
+
+    print(f"\n🔗 Records matched: {total:,}")
+
+    if total == 0:
+
+        print("❌ No matches found")
+
+        return
+
+    # ==========================================================
+    # CLASIFICAR PERFIL
+    # ==========================================================
+
+    print("\nClasificando perfiles...")
+
+    lf_result = (
+
+        lf_result
+
+        .with_columns(
+
+            pl.col("perfil")
+            .cast(pl.Utf8)
+            .str.to_uppercase()
+            .alias("perfil_upper")
+
+        )
+
+        .with_columns(
+
+            pl.when(
+
+                pl.col("perfil_upper").str.contains(
+                    "CORREO|EMAIL|MAIL"
+                )
+
+            )
+
+            .then(pl.lit("EMAIL"))
+
+            .when(
+
+                pl.col("perfil_upper").str.contains(
+                    "BLASTER|IVR"
+                )
+
+            )
+
+            .then(pl.lit("IVR"))
+
+            .when(
+
+                pl.col("perfil_upper").str.contains(
+                    "MENSAJ|SMS|TEXTO"
+                )
+
+            )
+
+            .then(pl.lit("SMS"))
+
+            .otherwise(
+
+                pl.col("perfil")
+
+            )
+
+            .alias("Recurso")
+
+        )
+
+    )
+
+    # ==========================================================
+    # AGRUPAR
+    # ==========================================================
+
+    print("\nAgrupando resultados...")
+    lf_result = lf_result.with_columns([
+        pl.col("Cuenta_Real").cast(pl.Utf8),
+        pl.col("cuenta_promesa").cast(pl.Utf8),
+    ])
+    lf_group = (
+
+        lf_result
+
+        .group_by(
+
+            [
+                "Recurso",
+                "campana",
+                "Cuenta_Real",
+                "cuenta_promesa",
+                "Marca_Asignada"
+            ]
+
+        )
+        .agg(
+            pl.len().alias("Cantidad")
+        )
+        .rename(
+            {
+                "cuenta_promesa": "Cuenta_Sin_Punto",
+                "Marca_Asignada": "Marca"
+            }
+        ).with_columns([
+            pl.when(pl.col("Cuenta_Real") == "nan")
+            .then(pl.col("Cuenta_Real"))
+            .otherwise(pl.col("Cuenta_Real") + "-")
+            .alias("Cuenta_Real"),
+
+            pl.when(pl.col("Cuenta_Sin_Punto") == "nan")
+            .then(pl.col("Cuenta_Sin_Punto"))
+            .otherwise(pl.col("Cuenta_Sin_Punto") + "-")
+            .alias("Cuenta_Sin_Punto"),
+        ]).select(
+            [
+                "Cuenta_Real",
+                "Cuenta_Sin_Punto",
+                "Marca",
+                "Recurso",
+                "Cantidad"
+            ]
+        )
+    )
+
+    df_result = lf_group.collect(streaming=True)
+
+    # ==========================================================
+    # ESTADISTICAS
+    # ==========================================================
+
+    print("\n📊 Unique accounts by resource:")
+
+    recursos = df_result["Recurso"].unique().to_list()
+
+    for recurso in recursos:
+
+        tmp = df_result.filter(
+
+            pl.col("Recurso") == recurso
+
+        )
+
+        cuentas = tmp["Cuenta_Sin_Punto"].n_unique()
+
+        cantidad = tmp["Cantidad"].sum()
+
+        print(
+
+            f"   {recurso}: {cuentas:,} unique accounts, {cantidad:,} total messages"
+
+        )
+
+    # ==========================================================
+    # EXPORTAR
+    # ==========================================================
+
+    current_date = datetime.now().strftime("%Y%m%d")
+
+    print("\n💾 Generating files:")
+
+    for recurso in recursos:
+
+        salida = os.path.join(
+
+            output_path,
+
+            f"{recurso}_{current_date}.csv"
+
+        )
+
+        (
+
+            df_result
+
+            .filter(
+
+                pl.col("Recurso") == recurso
+
+            )
+
+            .write_csv(
+
+                salida,
+
+                separator=";"
+
+            )
+
+        )
+
+        filas = (
+
+            df_result
+
+            .filter(
+
+                pl.col("Recurso") == recurso
+
+            )
+
+            .height
+
+        )
+
+        total = (
+
+            df_result
+
+            .filter(
+
+                pl.col("Recurso") == recurso
+
+            )["Cantidad"].sum()
+
+        )
+
+        print(
+
+            f"   ✅ {recurso}: {filas:,} rows, {total:,} total -> {os.path.basename(salida)}"
+
+        )
+
+    print("\n" + "=" * 80)
+
     print("✅ PROCESSING COMPLETED SUCCESSFULLY")
+
     print(f"📁 Files saved in: {output_path}")
-    print("="*80)
-    
+
+    print("=" * 80)
+
     return df_result
