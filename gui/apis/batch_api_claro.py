@@ -114,11 +114,18 @@ def process_batch_files(input_path, output_path):
         if not dt_str or pd.isna(dt_str):
             return None
         
-        dt_str = str(dt_str).strip()
+        dt_str = re.sub(r'\s+', ' ', str(dt_str).strip())
         if not dt_str:
             return None
+
+        ampm_match = re.search(r'\b([ap])\.?\s*m\.?\s*$', dt_str, re.IGNORECASE)
+        if ampm_match:
+            ampm = 'AM' if ampm_match.group(1).lower() == 'a' else 'PM'
+            dt_str = dt_str[:ampm_match.start()].strip() + f' {ampm}'
         
         formats = [
+            '%d/%m/%Y %I:%M:%S %p',
+            '%d/%m/%Y %I:%M %p',
             '%Y-%m-%dT%H:%M:%S',
             '%Y-%m-%d %H:%M:%S',
             '%d/%m/%Y %H:%M:%S',
@@ -243,6 +250,8 @@ def process_batch_files(input_path, output_path):
 
             df.columns = [str(c).strip().replace('"', '') for c in df.columns]
             cols = df.columns
+            if 'ESTADO' in cols and any('IDENTIFICACION' in col.upper() for col in cols):
+                print(f"📋 Columnas reconocidas en posible archivo Blaster {fname}: {cols!r}")
             res = None
             conditional = "Unknown"
 
