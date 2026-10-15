@@ -153,21 +153,35 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
     def extract_duration(gestion_text):
         if gestion_text is None:
             return "00:00:00"
-        
-        text = str(gestion_text)
-        
-        match = re.search(r'Duracion:\s*(\d{2}:\d{2}:\d{2})', text)
+
+        text = str(gestion_text).strip()
+
+        # Caso 1: Duracion: 00:00:04 o Duracion: 0:00:04
+        match = re.search(
+            r'Duracion:\s*(\d{1,2}:\d{2}:\d{2})',
+            text,
+            re.IGNORECASE
+        )
         if match:
-            return match.group(1)
-        
-        match_num = re.search(r'Duracion:\s*(\d+)', text)
+            hours, minutes, seconds = map(
+                int, match.group(1).split(":")
+            )
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        # Caso 2: Duracion: 4 (segundos)
+        match_num = re.search(
+            r'Duracion:\s*(\d+)',
+            text,
+            re.IGNORECASE
+        )
         if match_num:
             secs = int(match_num.group(1))
             hours = secs // 3600
             minutes = (secs % 3600) // 60
             seconds = secs % 60
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        
+
+        # Caso 3: El texto termina con un número de segundos
         match_any = re.search(r'(\d+)\s*$', text)
         if match_any:
             secs = int(match_any.group(1))
@@ -175,7 +189,7 @@ def report_claro_masive(input_folder: str, output_folder: str) -> str:
             minutes = (secs % 3600) // 60
             seconds = secs % 60
             return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        
+
         return "00:00:00"
     
     def extract_tipificacion(gestion_text):
