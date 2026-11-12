@@ -208,7 +208,7 @@ class Charge_DB(QtWidgets.QMainWindow):
             )
         
         # Values for filtering
-        values = ["RR", "ASCARD", "BSCS", "SGA"]
+        values = ["RR", "ASCARD", "BSCS", "SGA", "SF"]
         
         # 4. Filter safely: Cast column '3_' to Utf8 just in case it's numeric in Parquet
         Data_Root = Data_Root.filter(
@@ -394,7 +394,7 @@ class Charge_DB(QtWidgets.QMainWindow):
         root = list_data[1]
         partitions = int(list_data[2])
 
-        list_origins = ["ASCARD", "RR", "BSCS", "SGA"]
+        list_origins = ["ASCARD", "RR", "BSCS", "SGA", "SF"]
 
         now = datetime.now()
         Time_File = now.strftime("%Y%m%d_%H%M")
@@ -659,7 +659,7 @@ class Charge_DB(QtWidgets.QMainWindow):
         root = list_data[1]
         partitions = int(list_data[2])
 
-        list_origins = ["ASCARD", "RR", "BSCS", "SGA"]
+        list_origins = ["ASCARD", "RR", "BSCS", "SGA", "SF"]
 
         now = datetime.now()
         Time_File = now.strftime("%Y%m%d_%H%M")
