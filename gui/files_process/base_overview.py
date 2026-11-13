@@ -592,6 +592,16 @@ class Charge_DB(QtWidgets.QMainWindow):
         if "56_" in Data_Root.columns:
             Data_Root = Data_Root.rename({"56_": "Monitor"})
 
+        Data_Root = Data_Root.with_columns(
+            pl.when(
+                col("Fecha de Vencimiento").is_null()
+                | (col("Fecha de Vencimiento").str.strip_chars() == "")
+            )
+            .then(lit("0/01/1900"))
+            .otherwise(col("Fecha de Vencimiento"))
+            .alias("Fecha de Vencimiento")
+        )
+
         # --- Logging and Error Handling ---Id de Ejecucion
         Data_Error = Data_Root.clone() # Use clone() to create a separate copy of the DataFrame
 
