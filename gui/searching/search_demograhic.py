@@ -21,7 +21,7 @@ def process_data(directory, output_directory, selected_columns, return_matches, 
     join_column_original = original_data.columns[0]
     
     # Copy and read demographic files
-    src_folder = r"\\172.128.10.200\4. Gestion de Operaciones\2. Claro\Data compartida\NO BORRAR CONEXIÓN API\Demos Unificados"
+    src_folder = r"\\fs01\4. Gestion de Operaciones\2. Claro\Data compartida\NO BORRAR CONEXIÓN API\Demos Unificados"
     cruce_path = copy_demos_files(src_folder)
     unions_files = read_and_union_files(cruce_path)
     cruce_data = unions_files
