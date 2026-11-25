@@ -19,6 +19,14 @@ COLUMNS_SMS_SAEM_2 = ['respuesta doble via', 'fecha de creacion', 'enviados', 'r
     'nombre de usuario', 'país'
 ]
 
+COLUMNS_SMS_SAEM_3 = [
+    'enviados', 'créditos', 'total', 'fecha de finalización', 'id usuario',
+    'aperturas landing', 'nombre de la campaña', 'tipo servicio', 'estado', '\ufeffid',
+    'doble vía', 'fecha de creación', 'registros', 'nombre de usuario', 'país',
+    'fecha de inicio', 'flash', 'código servicio', 'progresivo', 'tipo de campaña',
+    'periodo', 'bulk', 'código estado', 'respuesta doble vía', 'errados'
+]
+
 COLUMNS_IVR_SAEM = ['estado', 'nombre_campana', 'id', 'registros', 'tipo_campana', 'ejecutados_pct', 
     'ejecutados', 'ult_llamada', 'archivo', 'sin_respuesta', 'fecha_inicio', 'repasos_asignados', 
     'repasos_ejecutados', 'fecha_fin', 'segundos', 'satisfactorios', 'colgados', 'pendientes', 'usuario', 
@@ -84,7 +92,7 @@ def classify_excel_file(file_path):
             return "unsupported_type", []
 
         present_headers = list(all_headers)
-        
+        print("COLUMNAS ACTUALES", present_headers)
         if all(col in present_headers for col in COLUMNS_WISEBOT_BENEFITS):
             return "wisebot_benefits", present_headers
         elif all(col in present_headers for col in COLUMNS_WISEBOT_AGREEMENT):
@@ -97,6 +105,8 @@ def classify_excel_file(file_path):
             return "wisebot_base", present_headers
         elif all(col in present_headers for col in COLUMNS_SMS_SAEM_2):
             return "sms_saem", present_headers
+        elif all(col in present_headers for col in COLUMNS_SMS_SAEM_3):
+            return "sms_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_IVR_SAEM):
             return "ivr_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_EMAIL_MASIVIAN):
@@ -105,7 +115,7 @@ def classify_excel_file(file_path):
             return "sms_masivian", present_headers
         elif all(col in present_headers for col in COLUMNS_IVR_IPCOM):
             return "ivr_ipcom", present_headers
-
+        
         return "unknown", present_headers
 
     except FileNotFoundError:
@@ -168,7 +178,7 @@ def process_sms_saem(file_path, present_headers):
     try:
         df = _read_and_normalize_csv_data(file_path)
         df['source_file_type'] = 'SMS_SAEM'
-
+        print("COLUMNAS EN SMS SAEM", df.columns)
         if 'enviados' in df.columns and 'fecha de inicio' in df.columns and 'nombre de la campaña' in df.columns:
             df['enviados'] = pd.to_numeric(df['enviados'], errors='coerce').fillna(0)
             df['fecha de inicio'] = pd.to_datetime(df['fecha de inicio'], errors='coerce')
@@ -566,6 +576,7 @@ def process_excel_files_in_folder(input_folder):
             file_path = os.path.join(input_folder, filename)
 
             file_type, present_headers = classify_excel_file(file_path)
+            print("EL TIPO DE ARCHIVO ES:", file_type)
             processed_data = None
             
             try:
