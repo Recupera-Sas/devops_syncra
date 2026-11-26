@@ -100,6 +100,8 @@ def classify_excel_file(file_path):
             return "sms_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_IVR_SAEM):
             return "ivr_saem", present_headers
+        elif all(col in present_headers for col in registers_telematic.COLUMNS_IVR_SAEM_2):
+            return "ivr_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_EMAIL_MASIVIAN):
             return "email_masivian", present_headers
         elif all(col in present_headers for col in COLUMNS_SMS_MASIVIAN):
@@ -191,12 +193,13 @@ def process_sms_saem(file_path, present_headers):
 def process_ivr_saem(file_path, present_headers):
     print(f"📞 Procesando IVR SAEM: '{file_path}'")
     df = _read_and_normalize_csv_data(file_path)
+    df.rename(columns=registers_telematic.IVR_SAEM_COLUMN_ALIASES, inplace=True)
     df['source_file_type'] = 'IVR_SAEM'
 
     required_cols = ['fecha_inicio', 'segundos', 'nombre_campana', 'tipo_campana']
     standard_personalizado_col = None
     for col in df.columns:
-        if df[col].astype(str).str.contains(r'estandar|personalizado', case=False, na=False).any() and col != 'nombre_campana':
+        if df[col].astype(str).str.contains(r'est[aá]ndar|personalizad[oa]', case=False, na=False).any() and col != 'nombre_campana':
             standard_personalizado_col = col
             required_cols.append(standard_personalizado_col)
             break
@@ -227,6 +230,14 @@ def process_ivr_saem(file_path, present_headers):
             df.loc[df['nombre campaña_lower'].str.contains(keyword, na=False), 'campaign_group'] = group
     
     df.drop(columns=['nombre campaña_lower'], inplace=True)
+    original = df[standard_personalizado_col]
+    normalized = original.astype("string").str.strip().str.casefold()
+    df[standard_personalizado_col] = normalized.map({
+        "estandar": "ESTANDAR",
+        "estándar": "ESTANDAR",
+        "personalizado": "PERSONALIZADO",
+        "personalizada": "PERSONALIZADO",
+    }).fillna(original)
     df_filtered_for_agg = df.dropna(subset=['fecha_programada_dia'])
 
     if not df_filtered_for_agg.empty:
