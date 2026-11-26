@@ -96,8 +96,6 @@ def classify_excel_file(file_path):
             return "wisebot_base", present_headers
         elif all(col in present_headers for col in COLUMNS_SMS_SAEM_2):
             return "sms_saem", present_headers
-        elif all(col in present_headers for col in registers_telematic.COLUMNS_SMS_SAEM_3):
-            return "sms_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_IVR_SAEM):
             return "ivr_saem", present_headers
         elif all(col in present_headers for col in registers_telematic.COLUMNS_IVR_SAEM_2):
@@ -146,14 +144,12 @@ def _read_and_normalize_csv_data(file_path):
             )
 
             if df.empty:
-                print("ENTRA A ESTE IF")
                 continue
 
             df.columns = normalize_columns(df.columns)
             return df
 
-        except Exception as e:
-            print(f"ha ocurrido un error al leer el archivo: {e}")
+        except Exception:
             continue
 
     try:
