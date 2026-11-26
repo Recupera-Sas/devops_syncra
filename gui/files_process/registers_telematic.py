@@ -25,6 +25,31 @@ COLUMNS_IVR_SAEM = ['estado', 'nombre_campana', 'id', 'registros', 'tipo_campana
     'fecha_creacion', 'audio', 'id_usuario', 'sin_contacto'
 ]
 
+COLUMNS_IVR_SAEM_2 = [
+    'sin contacto', 'nombre de campaña', 'segundos totales', 'fecha de fin',
+    '% ejecutados', 'repasos asignados', 'sin respuesta', 'registros',
+    'repasos ejecutados', 'colgados', 'tipo de campaña', 'estado', 'audio',
+    'última llamada', 'ejecutados', 'créditos', 'fecha de creación',
+    'fecha de inicio', 'pendientes', 'usuario', '\ufeffid', 'satisfactorios',
+    'id usuario', 'archivo'
+]
+
+IVR_SAEM_COLUMN_ALIASES = {
+    'nombre de campaña': 'nombre_campana',
+    'segundos totales': 'segundos',
+    'fecha de fin': 'fecha_fin',
+    '% ejecutados': 'ejecutados_pct',
+    'repasos asignados': 'repasos_asignados',
+    'sin respuesta': 'sin_respuesta',
+    'repasos ejecutados': 'repasos_ejecutados',
+    'tipo de campaña': 'tipo_campana',
+    'última llamada': 'ult_llamada',
+    'fecha de creación': 'fecha_creacion',
+    'fecha de inicio': 'fecha_inicio',
+    'sin contacto': 'sin_contacto',
+    'id usuario': 'id_usuario'
+}
+
 COLUMNS_EMAIL_MASIVIAN = [
     "id cuenta", "cuenta", "campaña", "asunto", "fecha de envío", "estado campaña",
     "total cargados", "procesados", "no procesados", "no enviados", "% no enviados",
@@ -98,6 +123,8 @@ def classify_excel_file(file_path):
         elif all(col in present_headers for col in COLUMNS_SMS_SAEM_2):
             return "sms_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_IVR_SAEM):
+            return "ivr_saem", present_headers
+        elif all(col in present_headers for col in COLUMNS_IVR_SAEM_2):
             return "ivr_saem", present_headers
         elif all(col in present_headers for col in COLUMNS_EMAIL_MASIVIAN):
             return "email_masivian", present_headers
@@ -192,6 +219,7 @@ def process_sms_saem(file_path, present_headers):
 def process_ivr_saem(file_path, present_headers):
     try:
         df = _read_and_normalize_csv_data(file_path)
+        df.rename(columns=IVR_SAEM_COLUMN_ALIASES, inplace=True)
         df['source_file_type'] = 'IVR_SAEM'
 
         required_cols = ['fecha_inicio', 'ejecutados', 'nombre_campana', 'tipo_campana']
