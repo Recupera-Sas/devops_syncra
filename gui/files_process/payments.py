@@ -282,7 +282,7 @@ def unify_payments(input_folder, output_folder):
                         ((final_df['fecha'].dt.year == current_year) & 
                          (final_df['fecha'].dt.month >= current_month))]
         
-        filtered_df[['obligacion', 'identificacion', 'fecha', 'valor', 'asesor']].to_csv(output_path, index=False, sep=';')
+        filtered_df[['identificacion', 'obligacion', 'fecha', 'valor', 'asesor']].to_csv(output_path, index=False, sep=';')
         
         details_df = details_df.drop_duplicates(subset=['obligacion', 'fecha', 'valor_decimal', 'origen'])
         details_df = details_df.sort_values(by='fecha')
